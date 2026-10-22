@@ -501,18 +501,19 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
 </script>
 
 <!-- What's new: edit the text here and raise data-version, and everyone sees it again, also those who ticked "don't show". -->
-<dialog class="news" id="news" data-version="3" aria-labelledby="news-title">
+<dialog class="news" id="news" data-version="4" aria-labelledby="news-title">
   <h2 id="news-title">מה חדש?</h2>
   <ol>
     <li>בניית ציר הליכה</li>
     <li>מדידת מרחק</li>
     <li>בדיקת אזימוטים</li>
+    <li>השבילים המסומנים ושבילי האופניים מופיעים במפה מיד, בלי לחכות לטעינה</li>
   </ol>
   <div class="news-alert"><strong>שים לב!</strong>
     <ul>
-      <li>טעינת כל השבילים לוקחת זמן: השבילים המסומנים, שבילי האופניים, ודרכי העפר והשבילים במפה הטופוגרפית. תן לתוכנה לטעון ואל תזיז את המפה, כדי שהם יוכלו להיטען באופן מלא. הטעינה לוקחת כמה דקות, אנא חכה.</li>
-      <li>אם לא רשום "טוען שבילים", אנא רענן את העמוד.</li>
-      <li>ברגע שהאפליקציה טוענת את השבילים הם נשמרים ל־14 יום, ולאחר מכן צריך לטעון אותם שוב.</li>
+      <li>במפה הטופוגרפית, טעינת דרכי העפר והשבילים לוקחת זמן. תן לתוכנה לטעון ואל תזיז את המפה, כדי שהם יוכלו להיטען באופן מלא. הטעינה לוקחת כמה דקות, אנא חכה.</li>
+      <li>אם לא רשום "טוען פרטים", אנא רענן את העמוד.</li>
+      <li>ברגע שהאפליקציה טוענת את דרכי העפר והשבילים הם נשמרים ל־14 יום, ולאחר מכן צריך לטעון אותם שוב.</li>
     </ul>
   </div>
   <div class="news-foot">
@@ -1028,15 +1029,14 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     const k = b.dataset.overlay;
     settings[k] = !settings[k];
     applyLayers();
-    if ((k === 'hiking' || k === 'mtb') && settings[k] && map.getZoom() < TRAIL_MIN_ZOOM) toast('התקרב למפה כדי לראות את השבילים.');
     if (k === 'tracks' && settings[k] && map.getZoom() < 13) toast('התקרב למפה כדי לראות דרכי עפר ושבילים.');
     loadAll();
   }));
 
-  // ---------- Marked trails, live from OpenStreetMap (Overpass API) ----------
-  // Israeli marked trails are mapped in OSM as route relations with their marking colour,
-  // so each trail is drawn in its real colour: red, blue, green, black, and the Israel Trail.
-  const TRAIL_MIN_ZOOM = 12;
+  // ---------- Marked trails and bike trails: ready-made tiles from Waymarked Trails (OpenStreetMap routes) ----------
+  // They show at once at every zoom, with nothing to load first. A tap on a trail asks OpenStreetMap
+  // (one small Overpass query) for its name and marking colour.
+  const TRAIL_INFO_ZOOM = 12;
   const OVERPASS = [
     'https://overpass-api.de/api/interpreter',
     'https://overpass.kumi.systems/api/interpreter',
@@ -1049,9 +1049,11 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
   };
   const OSM_DATA_ATTR = 'Data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
   addPane('trailLines', 360);
-  const trailRenderer = L.canvas({ pane: 'trailLines', tolerance: 8 });
-  const trailGroups = { hiking: L.layerGroup(), mtb: L.layerGroup() };
-  const drawnTrailWays = new Set();
+  const WMT_ATTR = 'Trails &copy; <a href="https://waymarkedtrails.org">Waymarked Trails</a> (CC-BY-SA)';
+  const trailTiles = {
+    hiking: L.tileLayer('https://tile.waymarkedtrails.org/hiking/{z}/{x}/{y}.png', { pane: 'trailLines', bounds: LIMITS, maxNativeZoom: 18, maxZoom: 19, attribution: WMT_ATTR }),
+    mtb: L.tileLayer('https://tile.waymarkedtrails.org/mtb/{z}/{x}/{y}.png', { pane: 'trailLines', bounds: LIMITS, maxNativeZoom: 18, maxZoom: 19, attribution: WMT_ATTR })
+  };
   let overpassIdx = 0, osmAttrOn = false;
 
   function markOf(tags) {
@@ -1065,56 +1067,48 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
   }
   const isIsraelTrail = (t) => /שביל ישראל/.test((t.name || '') + (t['name:he'] || '')) || /israel national trail/i.test((t['name:en'] || '') + (t.name || ''));
 
-  function trailPopup(ll, t, kind, int, mark) {
-    if (DRAW_TABS.includes(tab)) return; // in drawing tools a tap adds a point instead
-    const box = document.createElement('div');
-    const title = document.createElement('div');
-    title.className = 'pop-title';
-    title.textContent = t['name:he'] || t.name || (kind === 'mtb' ? 'שביל אופניים' : 'שביל מסומן');
-    const sub = document.createElement('div');
-    sub.className = 'pop-sub';
-    if (mark && !int) {
-      const bl = document.createElement('span');
-      bl.className = 'blaze';
-      bl.style.setProperty('--c', MARK[mark][0]);
-      sub.append(bl);
-    }
-    sub.append(int ? 'שביל ישראל' : (kind === 'mtb' ? 'שביל אופניים' : 'שביל הליכה') + (mark ? ', סימון ' + MARK[mark][1] : ''));
-    box.append(title, sub);
-    L.popup({ closeButton: false, offset: [0, -4] }).setLatLng(ll).setContent(box).openOn(map);
-  }
-
-  function drawTrails(data) {
-    const ways = new Map();
+  // Name and marking of the trails at a tapped point.
+  let trailAsk = 0;
+  async function trailInfoAt(ll) {
+    const ask = ++trailAsk;
+    const r = Math.max(8, Math.round(14 * 156543 * Math.cos(ll.lat * D2R) / Math.pow(2, map.getZoom()))); // about 14 px
+    const kinds = [settings.hiking && 'hiking|foot', settings.mtb && 'mtb|bicycle'].filter(Boolean).join('|');
+    let data;
+    try {
+      data = await overpass('[out:json][timeout:10];way(around:' + r + ',' + ll.lat.toFixed(6) + ',' + ll.lng.toFixed(6) + ')->.w;'
+        + 'rel(bw.w)["route"~"^(' + kinds + ')$"];out tags;', 15000);
+    } catch (e) { return; }
+    if (ask !== trailAsk || DRAW_TABS.includes(tab)) return;
+    const seen = new Set(), rows = [];
     (data.elements || []).forEach((el) => {
-      if (el.type === 'way' && el.geometry) ways.set(el.id, el.geometry.map((p) => [p.lat, p.lon]));
-    });
-    (data.elements || []).forEach((el) => {
-      if (el.type !== 'relation' || !el.members) return;
       const t = el.tags || {};
       const kind = t.route === 'mtb' || t.route === 'bicycle' ? 'mtb' : 'hiking';
-      const mark = markOf(t);
-      const int = kind === 'hiking' && isIsraelTrail(t);
-      // Walking routes without a marking colour aren't marked trails (city walks, tour routes): skip them.
-      if (kind === 'hiking' && !mark && !int) return;
-      const lines = [];
-      el.members.forEach((m) => {
-        const key = el.id + ':' + m.ref;
-        if (m.type !== 'way' || !ways.has(m.ref) || drawnTrailWays.has(key)) return;
-        drawnTrailWays.add(key);
-        lines.push(ways.get(m.ref));
-      });
-      if (!lines.length) return;
-      const color = int ? MARK.orange[0] : mark ? MARK[mark][0] : kind === 'mtb' ? '#1F5FA8' : '#C62E2E';
-      const g = trailGroups[kind];
-      L.polyline(lines, { renderer: trailRenderer, interactive: false, color: mark === 'white' ? '#333333' : '#FFFFFF', weight: 6.5, opacity: .9 }).addTo(g);
-      if (int) L.polyline(lines, { renderer: trailRenderer, interactive: false, color: MARK.blue[0], weight: 3.5 }).addTo(g);
-      const top = L.polyline(lines, {
-        renderer: trailRenderer, color, weight: 3.5, lineCap: 'butt',
-        dashArray: int ? '10 10' : kind === 'mtb' ? '8 5' : null
-      }).addTo(g);
-      top.on('click', (e) => trailPopup(e.latlng, t, kind, int, mark));
+      const mark = markOf(t), int = kind === 'hiking' && isIsraelTrail(t);
+      if (kind === 'hiking' && !mark && !int) return; // walking routes without a marking colour aren't marked trails
+      const name = t['name:he'] || t.name || (kind === 'mtb' ? 'שביל אופניים' : 'שביל מסומן');
+      if (seen.has(name + mark)) return;
+      seen.add(name + mark);
+      rows.push({ name, kind, mark, int });
     });
+    if (!rows.length) return;
+    const box = document.createElement('div');
+    rows.slice(0, 4).forEach((x, i) => {
+      const title = document.createElement('div');
+      title.className = 'pop-title';
+      if (i) title.style.marginTop = '10px';
+      title.textContent = x.name;
+      const sub = document.createElement('div');
+      sub.className = 'pop-sub';
+      if (x.mark && !x.int) {
+        const bl = document.createElement('span');
+        bl.className = 'blaze';
+        bl.style.setProperty('--c', MARK[x.mark][0]);
+        sub.append(bl);
+      }
+      sub.append(x.int ? 'שביל ישראל' : (x.kind === 'mtb' ? 'שביל אופניים' : 'שביל הליכה') + (x.mark ? ', סימון ' + MARK[x.mark][1] : ''));
+      box.append(title, sub);
+    });
+    L.popup({ closeButton: false, offset: [0, -4] }).setLatLng(ll).setContent(box).openOn(map);
   }
 
   async function overpass(query, wait) {
@@ -1239,9 +1233,9 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     }
   }
   function showTrails() {
-    const zoomOk = map.getZoom() >= TRAIL_MIN_ZOOM && settings.map !== 'topo';
-    setLayer(trailGroups.hiking, settings.hiking && zoomOk);
-    setLayer(trailGroups.mtb, settings.mtb && zoomOk);
+    const on = settings.map !== 'topo';
+    setLayer(trailTiles.hiking, settings.hiking && on);
+    setLayer(trailTiles.mtb, settings.mtb && on);
     updateOsmAttr();
     renderStatus();
   }
@@ -1303,11 +1297,6 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
   })();
 
   const loaders = [
-    { // marked trails (hiking map, aerial)
-      key: 'trails1', cell: 0.1, minZoom: TRAIL_MIN_ZOOM, cells: new Set(), busy: false, error: false, draw: drawTrails,
-      active: () => settings.map !== 'topo' && (settings.hiking || settings.mtb),
-      query: (b) => '[out:json][timeout:30];rel["route"~"^(hiking|foot|mtb|bicycle)$"](' + b + ')->.r;.r out body;way(r.r)(' + b + ');out geom;'
-    },
     { // topo: names of towns, villages and places, for the whole country in one go (nodes only, so it is light)
       key: 'places1', whole: true, minZoom: 0, cells: new Set(), busy: false, error: false, draw: drawTopo, wait: 80000,
       active: () => settings.map === 'topo' && settings.places,
@@ -1393,17 +1382,13 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     const el = $('trail-status'), z = map.getZoom();
     let txt = '';
     if (settings.map === 'topo') {
-      const st = contourStep(z), sp = loaders.slice(1);
+      const st = contourStep(z), sp = loaders;
       txt = 'קווי גובה כל ' + st + ' מ׳, וקו מודגש כל ' + st * 5 + ' מ׳.';
       if (sp.some((x) => x.busy)) txt += ' טוען פרטים…';
       else if (sp.some((x) => x.error)) txt += ' חלק מהפרטים לא נטענו, אנסה שוב כשתזיז את המפה.';
       else if (z < TOPO_DETAIL_ZOOM) txt += ' התקרב כדי לראות נחלים, דרכי עפר ופסגות.';
     } else if (settings.hiking || settings.mtb) {
-      const sp = loaders[0];
-      txt = z < TRAIL_MIN_ZOOM ? 'השבילים מופיעים כשמתקרבים למפה.'
-        : sp.busy ? 'טוען שבילים…'
-        : sp.error ? 'שרת השבילים לא זמין כרגע. אנסה שוב כשתזיז את המפה.'
-        : 'הקש על שביל כדי לראות את שמו ואת צבע הסימון.';
+      txt = z < TRAIL_INFO_ZOOM ? 'התקרב והקש על שביל כדי לראות את שמו ואת צבע הסימון.' : 'הקש על שביל כדי לראות את שמו ואת צבע הסימון.';
     }
     el.textContent = txt;
     el.hidden = !txt;
@@ -1784,6 +1769,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     if (tab === 'measure') addMeasure(e.latlng);
     else if (tab === 'route') addRoute(e.latlng);
     else if (tab === 'azimuth') addAz(e.latlng);
+    else if (settings.map !== 'topo' && (settings.hiking || settings.mtb) && map.getZoom() >= TRAIL_INFO_ZOOM) trailInfoAt(e.latlng);
   });
 
   // ---------- Distance measuring ----------
