@@ -287,6 +287,24 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
 .toast { position: fixed; left: 50%; bottom: 200px; transform: translate(-50%, 8px); z-index: 1100; max-width: calc(100vw - 40px); text-align: center; background: var(--ink); color: var(--panel); padding: 10px 16px; border-radius: 14px; font-size: 14px; line-height: 1.4; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+
+/* What's new popup */
+.news {
+  width: min(400px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); box-sizing: border-box; overflow-y: auto; margin: auto;
+  padding: 20px 20px 16px; border: 0; border-radius: 18px; background: var(--panel); color: var(--ink); box-shadow: 0 10px 40px rgba(0, 0, 0, .3);
+}
+.news::backdrop { background: rgba(20, 30, 25, .45); }
+.news h2 { font-size: 21px; }
+.news ol { margin: 12px 0 0; padding: 0; padding-inline-start: 22px; font-size: 16px; line-height: 1.5; }
+.news li::marker { color: var(--olive); font-weight: 600; }
+.news-alert {
+  margin: 16px 0 0; padding: 10px 12px; border-radius: 10px; border-inline-start: 4px solid var(--blaze-red);
+  background: var(--chip-bg); font-size: 14.5px; line-height: 1.5;
+}
+.news-alert strong { display: block; color: var(--blaze-red); margin-bottom: 2px; }
+.news-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; }
+.news-foot label { display: flex; align-items: center; gap: 6px; font-size: 13.5px; color: var(--muted); }
+.news-foot .btn { flex: none; padding: 10px 22px; }
 @media (min-width: 700px) {
   .sheet { width: 440px; margin: 0; position: absolute; right: 16px; bottom: 16px; border-radius: 16px; box-shadow: 0 6px 28px rgba(20, 30, 25, .25); }
   .tabs { border-radius: 0 0 16px 16px; }
@@ -468,6 +486,41 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
 </div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- What's new: edit the text here and raise data-version, and everyone sees it again, also those who ticked "don't show". -->
+<dialog class="news" id="news" data-version="1" aria-labelledby="news-title">
+  <h2 id="news-title">מה חדש?</h2>
+  <ol>
+    <li>בניית ציר הליכה</li>
+    <li>מדידת מרחק</li>
+    <li>בדיקת אזימוטים</li>
+  </ol>
+  <p class="news-alert"><strong>הודעה חשובה</strong>כדי שהשבילים המסומנים ושבילי האופניים ייטענו, תן לתוכנה לטעון ואל תזיז את המפה, כדי שהם יוכלו להיטען באופן מלא. שים לב! הטעינה לוקחת כמה דקות, אנא חכה.</p>
+  <div class="news-foot">
+    <label><input type="checkbox" id="news-hide">לא להציג שוב עד העדכון הבא</label>
+    <button type="button" class="btn primary" id="news-ok">הבנתי</button>
+  </div>
+</dialog>
+<script>
+(function () {
+  'use strict';
+  // Shown every time the app opens, unless the user hid this version of the message.
+  const dlg = document.getElementById('news'), ver = dlg.dataset.version;
+  let hidden = null;
+  try { hidden = localStorage.getItem('ihk-news-hidden'); } catch (e) {}
+  if (hidden === ver || typeof dlg.showModal !== 'function') return;
+  dlg.addEventListener('close', () => {
+    try {
+      if (document.getElementById('news-hide').checked) localStorage.setItem('ihk-news-hidden', ver);
+      else localStorage.removeItem('ihk-news-hidden');
+    } catch (e) {}
+  });
+  document.getElementById('news-ok').addEventListener('click', () => dlg.close());
+  dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); }); // tap outside the box
+  dlg.showModal();
+  document.getElementById('news-ok').focus();
+})();
+</script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
