@@ -207,6 +207,11 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
   font-family: "Rubik", "Arial Hebrew", sans-serif; color: #1F2A24; pointer-events: none;
   text-shadow: 0 0 2px #F7F4EC, 0 0 2px #F7F4EC, 0 0 3px #F7F4EC, 0 0 4px #F7F4EC;
 }
+.tl-city span { font-size: 17px; font-weight: 600; }
+.tl-town span { font-size: 15px; font-weight: 600; }
+.tl-village span { font-size: 13px; font-weight: 500; }
+.tl-hamlet span { font-size: 12px; }
+.tl-locality span { font-size: 12px; color: #5B4A36; }
 .tl-peak span, .tl-spring span { font-size: 11.5px; color: #5B3A1E; transform: translate(calc(-100% + 5px), -50%); }
 .tl-peak i, .tl-spring i { font-style: normal; margin-inline-end: 3px; }
 .tl-peak b { font-weight: 500; }
@@ -378,7 +383,7 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
       <div class="actions">
         <button type="button" class="btn" id="m-undo">ביטול אחרון</button>
         <button type="button" class="btn" id="m-clear">ניקוי</button>
-        <button type="button" class="btn" id="m-center">נקודה בכוונת</button>
+        <button type="button" class="btn" id="m-center">בחר נקודה</button>
       </div>
     </section>
 
@@ -395,7 +400,7 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
         <div class="actions">
           <button type="button" class="btn" id="r-undo">ביטול אחרון</button>
           <button type="button" class="btn" id="r-clear">ניקוי</button>
-          <button type="button" class="btn" id="r-center">נקודה בכוונת</button>
+          <button type="button" class="btn" id="r-center">בחר נקודה</button>
         </div>
         <div class="actions">
           <button type="button" class="btn primary" id="r-save">שמירה</button>
@@ -436,7 +441,7 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
       <p class="hint" id="az-hint"></p>
       <div class="actions">
         <button type="button" class="btn" id="az-me" aria-pressed="false">מהמיקום שלי</button>
-        <button type="button" class="btn" id="az-center">נקודה בכוונת</button>
+        <button type="button" class="btn" id="az-center">בחר נקודה</button>
         <button type="button" class="btn" id="az-clear">ניקוי</button>
       </div>
       <label class="decl">סטייה מגנטית
@@ -485,7 +490,7 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <!-- What's new: edit the text here and raise data-version, and everyone sees it again, also those who ticked "don't show". -->
-<dialog class="news" id="news" data-version="2" aria-labelledby="news-title">
+<dialog class="news" id="news" data-version="3" aria-labelledby="news-title">
   <h2 id="news-title">מה חדש?</h2>
   <ol>
     <li>בניית ציר הליכה</li>
@@ -494,8 +499,9 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
   </ol>
   <div class="news-alert"><strong>שים לב!</strong>
     <ul>
-      <li>כדי שהשבילים המסומנים ושבילי האופניים ייטענו, תן לתוכנה לטעון ואל תזיז את המפה, כדי שהם יוכלו להיטען באופן מלא. הטעינה לוקחת כמה דקות, אנא חכה.</li>
+      <li>טעינת כל השבילים לוקחת זמן: השבילים המסומנים, שבילי האופניים, ודרכי העפר והשבילים במפה הטופוגרפית. תן לתוכנה לטעון ואל תזיז את המפה, כדי שהם יוכלו להיטען באופן מלא. הטעינה לוקחת כמה דקות, אנא חכה.</li>
       <li>אם לא רשום "טוען שבילים", אנא רענן את העמוד.</li>
+      <li>ברגע שהאפליקציה טוענת את השבילים הם נשמרים ל־14 יום, ולאחר מכן צריך לטעון אותם שוב.</li>
     </ul>
   </div>
   <div class="news-foot">
@@ -689,7 +695,6 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
   addPane('contours', 260);
   addPane('roadTiles', 335);
   addPane('roads', 340);
-  addPane('placeTiles', 375);
   addPane('labels', 370, true);
   addPane('mask', 380);
 
@@ -946,11 +951,7 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
     hillshade: L.tileLayer(ESRI + 'Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}', {
       bounds: LIMITS, maxNativeZoom: 16, maxZoom: 19, opacity: .6, className: 'hillshade-tiles', attribution: 'Hillshade &copy; Esri'
     }),
-    // Place names and roads come as ready-made transparent tiles, so they show at once, with nothing to load first.
-    placeTiles: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png', {
-      pane: 'placeTiles', subdomains: 'abcd', bounds: LIMITS, maxNativeZoom: 18, maxZoom: 19,
-      attribution: OSM + ' &copy; <a href="https://carto.com/attributions">CARTO</a>'
-    }),
+    // Roads come as ready-made transparent tiles, so they show at once, with nothing to load first.
     roadTiles: L.tileLayer(ESRI + 'Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}', {
       pane: 'roadTiles', bounds: LIMITS, maxNativeZoom: 18, maxZoom: 19, attribution: 'Roads &copy; Esri'
     }),
@@ -995,7 +996,6 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
     setLayer(layers.aerial, m === 'aerial');
     setLayer(layers.hillshade, m === 'topo');
     setLayer(layers.contours, m === 'topo');
-    setLayer(layers.placeTiles, m === 'topo' && settings.places);
     setLayer(layers.roadTiles, m === 'topo' && settings.roads);
     $('map').classList.toggle('paper', m === 'topo');
 
@@ -1106,12 +1106,12 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
     });
   }
 
-  async function overpass(query) {
+  async function overpass(query, wait) {
     let lastErr;
     for (let k = 0; k < OVERPASS.length; k++) {
       const i = (overpassIdx + k) % OVERPASS.length;
       const ctl = new AbortController();
-      const timer = setTimeout(() => ctl.abort(), 45000); // longer than the [timeout:30] the queries ask the server for
+      const timer = setTimeout(() => ctl.abort(), wait || 45000); // longer than the [timeout:..] the query asks the server for
       try {
         const r = await fetch(OVERPASS[i], {
           method: 'POST', signal: ctl.signal,
@@ -1137,19 +1137,30 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
   addPane('streams', 300);
   const streamRenderer = L.canvas({ pane: 'streams' });
   const roadRenderer = L.canvas({ pane: 'roads' });
-  const topoGroups = { streams: L.layerGroup(), tracks: L.layerGroup(), peaks: L.layerGroup() };
-  const labelItems = { peaks: [] };
+  const topoGroups = {
+    streams: L.layerGroup(), tracks: L.layerGroup(), peaks: L.layerGroup(),
+    placesMajor: L.layerGroup(), placesVillage: L.layerGroup(), placesMinor: L.layerGroup()
+  };
+  const labelItems = { placesMajor: [], placesVillage: [], placesMinor: [], peaks: [] };
   const seenWays = new Set(), seenNodes = new Set();
   const ROAD_STYLE = {
     track: { group: 'tracks', color: '#2F2620', weight: 1.6, dash: '7 4' },
     path: { group: 'tracks', color: '#2F2620', weight: 1.1, dash: '2 4' }
+  };
+  const PLACE_CLASS = {
+    city: ['tl-city', 'placesMajor'], town: ['tl-town', 'placesMajor'], village: ['tl-village', 'placesVillage'],
+    hamlet: ['tl-hamlet', 'placesMinor'], isolated_dwelling: ['tl-hamlet', 'placesMinor'], locality: ['tl-locality', 'placesMinor']
   };
   const esc = (v) => String(v).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 
   function addPointLabel(el) {
     const t = el.tags, name = t['name:he'] || t.name;
     let cls, group, html;
-    if (t.natural === 'peak') {
+    if (t.place && PLACE_CLASS[t.place]) {
+      if (!name) return;
+      [cls, group] = PLACE_CLASS[t.place];
+      html = esc(name);
+    } else if (t.natural === 'peak') {
       const ele = parseFloat(t.ele);
       if (!name && isNaN(ele)) return;
       cls = 'tl-peak';
@@ -1225,6 +1236,9 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
   }
   function showTopo() {
     const on = settings.map === 'topo', z = map.getZoom();
+    setLayer(topoGroups.placesMajor, on && settings.places && z >= 10);
+    setLayer(topoGroups.placesVillage, on && settings.places && z >= 12);
+    setLayer(topoGroups.placesMinor, on && settings.places && z >= TOPO_DETAIL_ZOOM);
     setLayer(topoGroups.tracks, on && settings.tracks && z >= TOPO_DETAIL_ZOOM);
     setLayer(topoGroups.streams, on && z >= TOPO_DETAIL_ZOOM);
     setLayer(topoGroups.peaks, on && z >= TOPO_DETAIL_ZOOM);
@@ -1234,14 +1248,62 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
 
   // ---------- One loader for everything that comes from Overpass ----------
   // Each kind of data is fetched in grid cells, only once per cell, and one request at a time.
+  // Answers are saved in the browser for 14 days, so areas seen before show at once, even after a reload.
+  const CACHE_MS = 14 * 864e5;
+  const cache = (() => {
+    let dbp = null;
+    const open = () => dbp || (dbp = new Promise((res) => {
+      try {
+        const rq = indexedDB.open('ihk-cache', 1);
+        rq.onupgradeneeded = () => { rq.result.createObjectStore('meta', { keyPath: 'id' }); rq.result.createObjectStore('data'); };
+        rq.onsuccess = () => res(rq.result);
+        rq.onerror = rq.onblocked = () => res(null);
+      } catch (e) { res(null); }
+    }));
+    const req = (r) => new Promise((res) => { r.onsuccess = () => res(r.result); r.onerror = () => res(null); });
+    const tx = async (mode) => {
+      const db = await open();
+      try { return db && db.transaction(['meta', 'data'], mode); } catch (e) { return null; }
+    };
+    let index = null;
+    return {
+      // what is saved (small), with expired entries removed
+      index: () => index || (index = (async () => {
+        const t = await tx('readwrite');
+        if (!t) return [];
+        const all = (await req(t.objectStore('meta').getAll())) || [], now = Date.now();
+        const keep = [];
+        all.forEach((m) => {
+          if (now - m.t <= CACHE_MS) keep.push(m);
+          else { try { t.objectStore('meta').delete(m.id); t.objectStore('data').delete(m.id); } catch (e) {} }
+        });
+        return keep;
+      })()),
+      async get(id) {
+        const t = await tx('readonly');
+        return t ? req(t.objectStore('data').get(id)) : null;
+      },
+      async put(meta, data) {
+        const t = await tx('readwrite');
+        if (!t) return;
+        try { t.objectStore('meta').put(meta); t.objectStore('data').put(data, meta.id); (await this.index()).push(meta); } catch (e) {}
+      }
+    };
+  })();
+
   const loaders = [
     { // marked trails (hiking map, aerial)
-      cell: 0.1, minZoom: TRAIL_MIN_ZOOM, cells: new Set(), busy: false, error: false, draw: drawTrails,
+      key: 'trails1', cell: 0.1, minZoom: TRAIL_MIN_ZOOM, cells: new Set(), busy: false, error: false, draw: drawTrails,
       active: () => settings.map !== 'topo' && (settings.hiking || settings.mtb),
       query: (b) => '[out:json][timeout:30];rel["route"~"^(hiking|foot|mtb|bicycle)$"](' + b + ')->.r;.r out body;way(r.r)(' + b + ');out geom;'
     },
+    { // topo: names of towns, villages and places, for the whole country in one go (nodes only, so it is light)
+      key: 'places1', whole: true, minZoom: 0, cells: new Set(), busy: false, error: false, draw: drawTopo, wait: 80000,
+      active: () => settings.map === 'topo' && settings.places,
+      query: (b) => '[out:json][timeout:60];node["place"~"^(city|town|village|hamlet|isolated_dwelling|locality)$"]["name"](' + b + ');out body;'
+    },
     { // topo: dirt roads, paths, streams, peaks and springs, from zoom 13
-      cell: 0.1, minZoom: TOPO_DETAIL_ZOOM, cells: new Set(), busy: false, error: false, draw: drawTopo,
+      key: 'topo1', cell: 0.1, minZoom: TOPO_DETAIL_ZOOM, cells: new Set(), busy: false, error: false, draw: drawTopo,
       active: () => settings.map === 'topo',
       query: (b) => '[out:json][timeout:25];(way["highway"~"^(track|path)$"](' + b + ');'
         + 'way["waterway"~"^(river|stream|wadi)$"](' + b + '););out geom;'
@@ -1251,24 +1313,53 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
 
   async function loadSpec(sp) {
     if (!sp.active() || map.getZoom() < sp.minZoom) return;
-    const c = sp.cell, bb = map.getBounds().pad(0.2);
-    const s = Math.max(bb.getSouth(), LIMITS.getSouth()), n = Math.min(bb.getNorth(), LIMITS.getNorth());
-    const w = Math.max(bb.getWest(), LIMITS.getWest()), e = Math.min(bb.getEast(), LIMITS.getEast());
-    if (s >= n || w >= e) return;
-    const need = [];
-    for (let i = Math.floor(s / c); i <= Math.floor(n / c); i++) {
-      for (let j = Math.floor(w / c); j <= Math.floor(e / c); j++) if (!sp.cells.has(i + ':' + j)) need.push([i, j]);
+    const used = sp.used || (sp.used = new Set());
+    let need = [], bbox;
+    if (sp.whole) {
+      if (sp.cells.has('all')) return;
+      need = [['all']];
+    } else {
+      const c = sp.cell, bb = map.getBounds().pad(0.2);
+      const s = Math.max(bb.getSouth(), LIMITS.getSouth()), n = Math.min(bb.getNorth(), LIMITS.getNorth());
+      const w = Math.max(bb.getWest(), LIMITS.getWest()), e = Math.min(bb.getEast(), LIMITS.getEast());
+      if (s >= n || w >= e) return;
+      for (let i = Math.floor(s / c); i <= Math.floor(n / c); i++) {
+        for (let j = Math.floor(w / c); j <= Math.floor(e / c); j++) if (!sp.cells.has(i + ':' + j)) need.push([i, j]);
+      }
     }
     if (!need.length) return;
-    const i0 = Math.min(...need.map((q) => q[0])), i1 = Math.max(...need.map((q) => q[0]));
-    const j0 = Math.min(...need.map((q) => q[1])), j1 = Math.max(...need.map((q) => q[1]));
-    const bbox = [i0 * c, j0 * c, (i1 + 1) * c, (j1 + 1) * c].map((v) => v.toFixed(3)).join(',');
+    // Saved answers first.
+    const want = new Set(need.map((q) => q.join(':')));
+    for (const m of await cache.index()) {
+      if (m.spec !== sp.key || used.has(m.id) || !m.cells.some((k) => want.has(k))) continue;
+      used.add(m.id);
+      const d = await cache.get(m.id);
+      if (d) { sp.draw(d); m.cells.forEach((k) => sp.cells.add(k)); }
+    }
+    need = need.filter((q) => !sp.cells.has(q.join(':')));
+    if (!need.length) { renderStatus(); return; }
+    let cells;
+    if (sp.whole) {
+      bbox = [LIMITS.getSouth(), LIMITS.getWest(), LIMITS.getNorth(), LIMITS.getEast()].join(',');
+      cells = ['all'];
+    } else {
+      const c = sp.cell;
+      const i0 = Math.min(...need.map((q) => q[0])), i1 = Math.max(...need.map((q) => q[0]));
+      const j0 = Math.min(...need.map((q) => q[1])), j1 = Math.max(...need.map((q) => q[1]));
+      bbox = [i0 * c, j0 * c, (i1 + 1) * c, (j1 + 1) * c].map((v) => v.toFixed(3)).join(',');
+      cells = [];
+      for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) cells.push(i + ':' + j);
+    }
     sp.busy = true;
     sp.error = false;
     renderStatus();
     try {
-      sp.draw(await overpass(sp.query(bbox)));
-      for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) sp.cells.add(i + ':' + j);
+      const data = await overpass(sp.query(bbox), sp.wait);
+      sp.draw(data);
+      cells.forEach((k) => sp.cells.add(k));
+      const id = sp.key + ':' + bbox;
+      used.add(id);
+      cache.put({ id, spec: sp.key, cells, t: Date.now() }, data);
     } catch (err) {
       sp.error = true;
     }
