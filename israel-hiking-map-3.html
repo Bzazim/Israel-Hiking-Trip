@@ -66,6 +66,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .leaflet-container { background: var(--map-bg); font-family: inherit; }
 #map.drawing, #map.drawing .leaflet-interactive { cursor: crosshair; }
 .leaflet-top { top: env(safe-area-inset-top, 0px); }
+.leaflet-top.leaflet-right { top: calc(env(safe-area-inset-top, 0px) + 148px); } /* below the search box and compass */
 .leaflet-left { left: env(safe-area-inset-left, 0px); }
 .leaflet-right { right: env(safe-area-inset-right, 0px); }
 .leaflet-bottom { bottom: 16px; }
@@ -93,6 +94,41 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 }
 .coord-k { font-size: 12px; color: var(--muted); font-weight: 400; }
 
+/* Top right: coordinate search and compass */
+.tr-stack {
+  position: absolute; top: calc(10px + env(safe-area-inset-top, 0px)); right: calc(10px + env(safe-area-inset-right, 0px)); z-index: 940;
+  width: min(300px, calc(100% - 72px)); display: flex; flex-direction: column; align-items: flex-start; /* the right edge in RTL */ gap: 8px; pointer-events: none;
+}
+.tr-stack > * { pointer-events: auto; }
+.search { display: flex; align-items: center; width: 100%; margin: 0; background: var(--panel); border-radius: 999px; box-shadow: 0 1px 6px rgba(0, 0, 0, .25); }
+.search input {
+  flex: 1; min-width: 0; border: 0; background: transparent; color: var(--ink); font-size: 16px; padding: 10px 4px 10px 0; padding-inline-start: 14px;
+  border-radius: 999px; -webkit-appearance: none; appearance: none;
+}
+.search input::placeholder { color: var(--muted); }
+.search input::-webkit-search-cancel-button { display: none; }
+.search input:focus-visible { outline: 0; }
+.search:focus-within { box-shadow: 0 0 0 2px var(--blaze-blue), 0 1px 6px rgba(0, 0, 0, .25); }
+.search button { flex: none; width: 38px; height: 40px; display: grid; place-items: center; padding: 0; border: 0; background: none; color: var(--muted); cursor: pointer; border-radius: 999px; }
+.search button[type="submit"] { color: var(--ink); }
+.compass {
+  position: relative; width: 52px; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 5px 0 6px;
+  border: 0; border-radius: 26px; background: var(--panel); color: var(--ink); box-shadow: 0 1px 6px rgba(0, 0, 0, .25);
+  cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none;
+}
+.compass.locked { cursor: pointer; }
+.compass > svg { width: 42px; height: 42px; display: block; }
+.cmp-ring { fill: none; stroke: var(--line); stroke-width: 1.5; }
+.cmp-tick { stroke: var(--muted); stroke-width: 1.2; }
+.cmp-n { fill: #D62828; }
+.cmp-s { fill: var(--muted); opacity: .55; }
+.cmp-letter { font: 600 9px "Rubik", sans-serif; fill: #D62828; text-anchor: middle; }
+.cmp-deg { font-size: 12.5px; font-weight: 600; line-height: 1.1; }
+.cmp-dir { font-size: 10.5px; color: var(--muted); line-height: 1.1; }
+.cmp-lock { position: absolute; top: 2px; left: 2px; width: 15px; height: 15px; border-radius: 50%; display: none; place-items: center; background: var(--ink); color: var(--panel); }
+.compass.locked .cmp-lock { display: grid; }
+.pin-ic { background: none; border: 0; }
+
 /* Map labels and markers */
 .map-label { background: none; border: 0; }
 .map-label .lbl {
@@ -102,6 +138,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
   font: 600 13px/1.25 "Rubik", "Arial Hebrew", sans-serif; box-shadow: 0 1px 5px rgba(0, 0, 0, .3);
 }
 .map-label .lbl.az { color: #B0287A; font-size: 15px; }
+.map-label .lbl.pin { transform: translate(-50%, calc(-100% - 42px)); direction: ltr; }
 .map-label .lbl small { display: block; font-size: 11px; font-weight: 400; color: #5C665F; }
 .wp span {
   display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
@@ -244,6 +281,7 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
   .sheet { width: 440px; margin: 0; position: absolute; right: 16px; bottom: 16px; border-radius: 16px; box-shadow: 0 6px 28px rgba(20, 30, 25, .25); }
   .tabs { border-radius: 0 0 16px 16px; }
   .coord { right: auto; left: 60px; bottom: 20px; }
+  .tr-stack { width: 320px; }
   .leaflet-bottom { bottom: 0; }
 }
 </style>
@@ -253,8 +291,34 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
   <div id="map" dir="ltr"></div>
   <div class="crosshair" aria-hidden="true"></div>
   <div class="banner" id="banner" role="alert" hidden><strong>המפה לא נטענת</strong><p id="banner-text"></p></div>
-  <button type="button" class="coord" id="coord" title="הקש כדי להחליף בין רשת ישראל לקווי רוחב ואורך">
-    <span class="coord-k" id="coord-k">נ.צ.</span><span class="num" dir="ltr" id="coord-v">—</span>
+  <div class="tr-stack">
+    <form class="search" id="search" role="search" autocomplete="off">
+      <input type="search" id="search-q" enterkeyhint="search" spellcheck="false" placeholder="חיפוש נ.צ."
+        aria-label="חיפוש נקודת ציון" title="UTM, למשל 36R 712345 3512345 · רשת ישראל, למשל 219529/626907 · קו רוחב ואורך, למשל 31.77, 35.21">
+      <button type="button" id="search-clear" aria-label="ניקוי החיפוש" hidden>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+      <button type="submit" aria-label="חיפוש">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg>
+      </button>
+    </form>
+    <button type="button" class="compass" id="compass">
+      <svg viewBox="0 0 44 44" aria-hidden="true">
+        <circle cx="22" cy="22" r="20" class="cmp-ring"/>
+        <g id="cmp-rose">
+          <path class="cmp-tick" d="M22 4v3M22 37v3M4 22h3M37 22h3"/>
+          <path class="cmp-n" d="M22 9 L26 22 H18 Z"/>
+          <path class="cmp-s" d="M22 35 L26 22 H18 Z"/>
+          <text x="22" y="8.2" class="cmp-letter">צ</text>
+        </g>
+      </svg>
+      <span class="cmp-deg num" id="cmp-deg" dir="ltr">000°</span>
+      <span class="cmp-dir" id="cmp-dir">צפון</span>
+      <span class="cmp-lock" aria-hidden="true"><svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10V7a5 5 0 0 1 10 0v3h1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V11a1 1 0 0 1 1-1h1Zm2 0h6V7a3 3 0 0 0-6 0v3Z"/></svg></span>
+    </button>
+  </div>
+  <button type="button" class="coord" id="coord" title="הקש כדי להחליף בין UTM, רשת ישראל וקווי רוחב ואורך">
+    <span class="coord-k" id="coord-k">UTM</span><span class="num" dir="ltr" id="coord-v">—</span>
   </button>
 </div>
 
@@ -392,6 +456,7 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
 <script>
 (function () {
   'use strict';
@@ -424,8 +489,9 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
   };
   const settings = Object.assign({
     map: null, hiking: true, mtb: false, places: true, roads: true, tracks: true,
-    decl: 5, coordFmt: 'itm', tab: 'map', open: true, view: null
+    decl: 5, coordFmt: 'utm', tab: 'map', open: true, view: null
   }, store.get('ihk-settings', {}));
+  if (!settings.utm) { settings.coordFmt = 'utm'; settings.utm = true; } // UTM became the default grid
   if (!['hiking', 'topo', 'aerial'].includes(settings.map)) settings.map = settings.base === 'aerial' ? 'aerial' : 'hiking';
   ['base', 'blend', 'topoSrc'].forEach((k) => delete settings[k]);
   const saveSettings = () => store.set('ihk-settings', settings);
@@ -433,10 +499,10 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
   // ---------- Geometry and formatting ----------
   const D2R = Math.PI / 180;
 
-  // Israeli Transverse Mercator (EPSG:2039). WGS84 -> Israel 1993 datum shift (3 parameters, ~1-2 m), then TM.
-  function tm(phi, lam) {
-    const a = 6378137, e2 = 0.00669438002290, ep2 = e2 / (1 - e2), e4 = e2 * e2, e6 = e4 * e2;
-    const k0 = 1.0000067, phi0 = 31.7343936111111 * D2R, lam0 = 35.2045169444444 * D2R;
+  // Transverse Mercator on the ellipsoid and grid given in P (angles in radians).
+  function tm(phi, lam, P) {
+    const a = 6378137, e2 = P.e2, ep2 = e2 / (1 - e2), e4 = e2 * e2, e6 = e4 * e2;
+    const k0 = P.k0, phi0 = P.phi0, lam0 = P.lam0;
     const M = (p) => a * ((1 - e2 / 4 - 3 * e4 / 64 - 5 * e6 / 256) * p
       - (3 * e2 / 8 + 3 * e4 / 32 + 45 * e6 / 1024) * Math.sin(2 * p)
       + (15 * e4 / 256 + 45 * e6 / 1024) * Math.sin(4 * p)
@@ -446,17 +512,41 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
     const x = k0 * N * (A + (1 - T + C) * A ** 3 / 6 + (5 - 18 * T + T * T + 72 * C - 58 * ep2) * A ** 5 / 120);
     const y = k0 * (M(phi) - M(phi0) + N * t * (A * A / 2 + (5 - T + 9 * C + 4 * C * C) * A ** 4 / 24
       + (61 - 58 * T + T * T + 600 * C - 330 * ep2) * A ** 6 / 720));
-    return { e: 219529.584 + x, n: 626907.390 + y };
+    return { e: P.fe + x, n: P.fn + y };
   }
+  // Israeli Transverse Mercator (EPSG:2039). WGS84 -> Israel 1993 datum shift (3 parameters, ~1-2 m), then TM.
+  const ITM = { e2: 0.00669438002290, k0: 1.0000067, phi0: 31.7343936111111 * D2R, lam0: 35.2045169444444 * D2R, fe: 219529.584, fn: 626907.390 };
+  const WGS_E2 = 0.00669437999014;
   function toItm(lat, lon) {
-    const e2W = 0.00669437999014, a = 6378137, e2 = 0.00669438002290;
+    const e2W = WGS_E2, a = 6378137, e2 = ITM.e2;
     let phi = lat * D2R, lam = lon * D2R, s = Math.sin(phi), N = a / Math.sqrt(1 - e2W * s * s);
     const X = N * Math.cos(phi) * Math.cos(lam) + 48, Y = N * Math.cos(phi) * Math.sin(lam) - 55, Z = N * (1 - e2W) * s - 52;
     lam = Math.atan2(Y, X);
     const p = Math.hypot(X, Y);
     phi = Math.atan2(Z, p * (1 - e2));
     for (let i = 0; i < 6; i++) { s = Math.sin(phi); N = a / Math.sqrt(1 - e2 * s * s); phi = Math.atan2(Z + e2 * N * s, p); }
-    return tm(phi, lam);
+    return tm(phi, lam, ITM);
+  }
+  // UTM on WGS84. Israel lies in zone 36 (30°-36°E), latitude bands R (south of 32°N) and S.
+  const utmZone = (lon) => Math.min(60, Math.max(1, Math.floor((lon + 180) / 6) + 1));
+  const utmBand = (lat) => 'CDEFGHJKLMNPQRSTUVWX'[Math.min(19, Math.max(0, Math.floor((lat + 80) / 8)))];
+  function toUtm(lat, lon, zone) {
+    zone = zone || utmZone(lon);
+    const p = tm(lat * D2R, lon * D2R, { e2: WGS_E2, k0: 0.9996, phi0: 0, lam0: (zone * 6 - 183) * D2R, fe: 500000, fn: lat < 0 ? 10000000 : 0 });
+    return { e: p.e, n: p.n, zone, band: utmBand(lat) };
+  }
+  // Grid -> WGS84 by Newton's method on the forward formula, so both directions always agree.
+  function fromGrid(fwd, e, n, lat, lon) {
+    for (let i = 0; i < 10; i++) {
+      const p = fwd(lat, lon), h = 1e-5, pa = fwd(lat + h, lon), po = fwd(lat, lon + h);
+      const a = (pa.e - p.e) / h, b = (po.e - p.e) / h, c = (pa.n - p.n) / h, d = (po.n - p.n) / h;
+      const de = e - p.e, dn = n - p.n, det = a * d - b * c;
+      if (!isFinite(det) || det === 0) return null;
+      lat += (d * de - b * dn) / det;
+      lon += (a * dn - c * de) / det;
+      if (Math.abs(de) + Math.abs(dn) < 0.001) break;
+    }
+    return isFinite(lat) && isFinite(lon) && Math.abs(lat) < 85 ? L.latLng(lat, lon) : null;
   }
   function bearing(a, b) {
     const p1 = a.lat * D2R, p2 = b.lat * D2R, dl = (b.lng - a.lng) * D2R;
@@ -483,8 +573,13 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
     const s = Math.max(0, Math.floor(ms / 1000));
     return Math.floor(s / 3600) + ':' + pad(Math.floor(s / 60) % 60, 2) + ':' + pad(s % 60, 2);
   }
+  const COORD_NAME = { utm: 'UTM', itm: 'רשת ישראל', wgs: 'WGS84' };
   function fmtCoord(lat, lng, kind) {
     if (kind === 'wgs') return lat.toFixed(5) + ', ' + lng.toFixed(5);
+    if (kind === 'utm') {
+      const u = toUtm(lat, lng);
+      return u.zone + u.band + ' ' + Math.round(u.e) + ' ' + Math.round(u.n);
+    }
     const p = toItm(lat, lng);
     return Math.round(p.e) + '/' + Math.round(p.n);
   }
@@ -501,14 +596,27 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
   // ---------- Map and layers ----------
   const ISRAEL = [[29.45, 34.25], [33.35, 35.9]];
   const LIMITS = L.latLngBounds([[29.2, 33.95], [33.6, 36.1]]);
-  const map = L.map('map', { zoomControl: false, attributionControl: false, minZoom: 7, maxZoom: 19, maxBounds: LIMITS, maxBoundsViscosity: 1 });
+  // leaflet-rotate adds map rotation; without it the map simply stays north-up.
+  const ROT_LIB = typeof L.Map.prototype.setBearing === 'function';
+  const map = L.map('map', {
+    zoomControl: false, attributionControl: false, minZoom: 7, maxZoom: 19, maxBounds: LIMITS, maxBoundsViscosity: 1,
+    rotate: ROT_LIB, rotateControl: false, touchRotate: ROT_LIB, shiftKeyRotate: ROT_LIB, bearing: 0
+  });
+  const canRotate = ROT_LIB && !!map._rotate && L.Browser.any3d;
+  // Panes that turn with the map go in the rotating pane; marker panes stay upright.
+  const addPane = (name, z, upright) => {
+    const parent = canRotate ? map.getPane(upright ? 'norotatePane' : 'rotatePane') : undefined;
+    const p = map.createPane(name, parent);
+    p.style.zIndex = z;
+    return p;
+  };
   L.control.zoom({ position: 'topleft', zoomInTitle: 'התקרבות', zoomOutTitle: 'התרחקות' }).addTo(map);
   const attribution = L.control.attribution({ position: 'topright', prefix: '<a href="https://leafletjs.com">Leaflet</a>' }).addTo(map);
   L.control.scale({ position: 'bottomleft', imperial: false, maxWidth: 110 }).addTo(map);
-  map.createPane('contours').style.zIndex = 260;
-  map.createPane('roads').style.zIndex = 340;
-  map.createPane('labels').style.zIndex = 370;
-  map.createPane('mask').style.zIndex = 380;
+  addPane('contours', 260);
+  addPane('roads', 340);
+  addPane('labels', 370, true);
+  addPane('mask', 380);
 
   // Everything outside Israel, the Golan and Judea & Samaria is covered; the sea to the west stays open.
   // The outline sits ~0.5-1.5 km outside the land border so trails along the border are never hidden.
@@ -813,6 +921,7 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
     saveSettings();
     showTrails();
     showTopo();
+    applyRotationLock();
   }
   document.querySelectorAll('[data-map]').forEach((b) => b.addEventListener('click', () => {
     settings.map = b.dataset.map;
@@ -843,7 +952,7 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
     white: ['#FFFFFF', 'לבן']
   };
   const OSM_DATA_ATTR = 'Data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
-  map.createPane('trailLines').style.zIndex = 360;
+  addPane('trailLines', 360);
   const trailRenderer = L.canvas({ pane: 'trailLines', tolerance: 8 });
   const trailGroups = { hiking: L.layerGroup(), mtb: L.layerGroup() };
   const drawnTrailWays = new Set();
@@ -940,7 +1049,7 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
 
   // ---------- Topographic map details from OpenStreetMap: roads, dirt roads, streams, names, peaks ----------
   const TOPO_MAIN_ZOOM = 10, TOPO_DETAIL_ZOOM = 13;
-  map.createPane('streams').style.zIndex = 300;
+  addPane('streams', 300);
   const streamRenderer = L.canvas({ pane: 'streams' });
   const roadRenderer = L.canvas({ pane: 'roads' });
   const topoGroups = {
@@ -1153,21 +1262,190 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
   function updateCoord() {
     coordRaf = 0;
     const c = map.getCenter();
-    $('coord-k').textContent = settings.coordFmt === 'wgs' ? 'WGS84' : 'נ.צ.';
+    $('coord-k').textContent = COORD_NAME[settings.coordFmt] || 'UTM';
     $('coord-v').textContent = fmtCoord(c.lat, c.lng, settings.coordFmt);
   }
   map.on('move', () => { if (!coordRaf) coordRaf = requestAnimationFrame(updateCoord); });
-  map.on('moveend', () => {
+  function saveView() {
     const c = map.getCenter();
-    settings.view = [Number(c.lat.toFixed(5)), Number(c.lng.toFixed(5)), map.getZoom()];
+    settings.view = [Number(c.lat.toFixed(5)), Number(c.lng.toFixed(5)), map.getZoom(), Math.round(getRot() * 10) / 10];
     saveSettings();
-  });
+  }
+  map.on('moveend', saveView);
   $('coord').addEventListener('click', () => {
-    settings.coordFmt = settings.coordFmt === 'wgs' ? 'itm' : 'wgs';
+    settings.coordFmt = { utm: 'itm', itm: 'wgs', wgs: 'utm' }[settings.coordFmt] || 'utm';
     saveSettings();
     updateCoord();
     renderGps();
   });
+
+  // ---------- Map rotation and compass ----------
+  // getRot() is how far north is turned clockwise on screen; the view faces the opposite way.
+  const getRot = () => canRotate ? norm(map.getBearing()) : 0;
+  const viewHeading = () => norm(-getRot());
+  const rotLocked = () => settings.map === 'topo'; // the topographic map always stays north-up
+  const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const DIRS = ['צפון', 'צפון־מזרח', 'מזרח', 'דרום־מזרח', 'דרום', 'דרום־מערב', 'מערב', 'צפון־מערב'];
+  let rotAnim = 0, rotSaveTimer = 0;
+  function setRot(deg) {
+    if (canRotate) map.setBearing(norm(deg));
+  }
+  function rotateTo(deg) {
+    cancelAnimationFrame(rotAnim);
+    rotAnim = 0;
+    if (!canRotate) return;
+    const from = getRot(), delta = ((deg - from) % 360 + 540) % 360 - 180;
+    if (Math.abs(delta) < 0.05) return;
+    if (reduceMotion) { setRot(deg); return; }
+    const t0 = performance.now();
+    const step = (t) => {
+      const k = Math.min(1, (t - t0) / 320);
+      setRot(from + delta * (1 - Math.pow(1 - k, 3)));
+      rotAnim = k < 1 ? requestAnimationFrame(step) : 0;
+    };
+    rotAnim = requestAnimationFrame(step);
+  }
+  function renderCompass() {
+    const rot = getRot(), h = viewHeading(), locked = rotLocked() || !canRotate;
+    $('cmp-rose').setAttribute('transform', 'rotate(' + rot.toFixed(1) + ' 22 22)');
+    $('cmp-deg').textContent = fmtDeg(h);
+    $('cmp-dir').textContent = DIRS[Math.round(h / 45) % 8];
+    const c = $('compass');
+    c.classList.toggle('locked', locked);
+    const what = 'המפה פונה ל' + DIRS[Math.round(h / 45) % 8] + ', ' + fmtDeg(h);
+    c.title = !canRotate ? 'המפה מכוונת לצפון'
+      : rotLocked() ? 'במפה הטופוגרפית הצפון תמיד למעלה'
+      : what + '. גרור כדי לסובב, הקש כדי לחזור לצפון.';
+    c.setAttribute('aria-label', 'מצפן. ' + what + (locked ? '. הסיבוב נעול.' : '. הקש כדי לכוון לצפון.'));
+  }
+  function applyRotationLock() {
+    if (canRotate) {
+      if (rotLocked()) {
+        map.touchRotate.disable();
+        map.shiftKeyRotate.disable();
+        map.scrollWheelZoom.enable(); // shift+wheel rotation may have paused it
+        rotateTo(0);
+      } else {
+        map.touchRotate.enable();
+        map.shiftKeyRotate.enable();
+      }
+    }
+    renderCompass();
+  }
+  map.on('rotate', () => {
+    if (rotLocked() && !rotAnim && getRot() !== 0) setRot(0);
+    renderCompass();
+    turnIcons();
+    clearTimeout(rotSaveTimer);
+    rotSaveTimer = setTimeout(saveView, 400);
+  });
+
+  // Drag the compass to turn the map; a tap turns it back to north.
+  (function compassControl() {
+    const c = $('compass');
+    let drag = null;
+    const angleAt = (e) => {
+      const r = c.querySelector('svg').getBoundingClientRect();
+      return Math.atan2(e.clientX - (r.left + r.width / 2), -(e.clientY - (r.top + r.height / 2))) / D2R;
+    };
+    c.addEventListener('pointerdown', (e) => {
+      if (e.button > 0) return;
+      drag = { x: e.clientX, y: e.clientY, a: angleAt(e), rot: getRot(), moved: false };
+      try { c.setPointerCapture(e.pointerId); } catch (err) {}
+    });
+    c.addEventListener('pointermove', (e) => {
+      if (!drag || !canRotate || rotLocked()) return;
+      if (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 6) return;
+      if (!drag.moved) { drag.moved = true; cancelAnimationFrame(rotAnim); rotAnim = 0; }
+      setRot(drag.rot + angleAt(e) - drag.a);
+    });
+    const end = () => {
+      if (!drag) return;
+      const moved = drag.moved;
+      drag = null;
+      if (moved) return;
+      if (!canRotate) toast('המפה מכוונת תמיד לצפון.');
+      else if (rotLocked()) toast('במפה הטופוגרפית הצפון תמיד למעלה, ואי אפשר לסובב אותה.');
+      else if (getRot() !== 0) rotateTo(0);
+      else toast('סובב את המפה בשתי אצבעות, או גרור את המצפן. הקשה על המצפן מחזירה לצפון.');
+    };
+    c.addEventListener('pointerup', end);
+    c.addEventListener('pointercancel', () => { drag = null; });
+    c.addEventListener('keydown', (e) => {
+      if (!canRotate || rotLocked() || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
+      e.preventDefault();
+      setRot(getRot() + (e.key === 'ArrowLeft' ? -15 : 15));
+    });
+    c.addEventListener('click', (e) => { if (e.detail === 0) { if (rotLocked() || !canRotate) end(); else rotateTo(0); } }); // keyboard Enter/Space
+  })();
+
+  // ---------- Coordinate search ----------
+  // Accepts UTM ("36R 712345 3512345", zone optional, zone 36 assumed), Israel grid ("219529/626907"),
+  // or degrees ("31.77, 35.21", also degrees-minutes-seconds). Either order of the two values works.
+  function parseCoord(text) {
+    const nums = (text.match(/\d+(?:\.\d+)?/g) || []).map(Number);
+    const inIsrael = (ll) => ll && LIMITS.contains(ll);
+    const pick = (opts) => opts.find(inIsrael) || opts[0] || null;
+    const degrees = (lat, lon) => pick([L.latLng(lat, lon), L.latLng(lon, lat)].filter((ll) => Math.abs(ll.lat) <= 90 && Math.abs(ll.lng) <= 180));
+    let zone = 36, v = nums;
+    if (nums.length === 3 && Number.isInteger(nums[0]) && nums[0] >= 1 && nums[0] <= 60 && Math.max(nums[1], nums[2]) >= 1e6) {
+      zone = nums[0];
+      v = nums.slice(1);
+    }
+    if (v.length === 4 || v.length === 6) { // degrees and minutes (and seconds)
+      const k = v.length / 2, dms = (a) => a.reduce((t, x, i) => t + x / Math.pow(60, i), 0);
+      const ll = degrees(dms(v.slice(0, k)), dms(v.slice(k)));
+      return ll && { ll, kind: 'wgs' };
+    }
+    if (v.length !== 2) return null;
+    const lo = Math.min(v[0], v[1]), hi = Math.max(v[0], v[1]);
+    if (hi <= 180) { const ll = degrees(v[0], v[1]); return ll && { ll, kind: 'wgs' }; }
+    if (hi >= 1e6 && hi < 1e7 && lo >= 1e5 && lo < 1e6) { // UTM: 6-digit easting, 7-digit northing
+      const ll = fromGrid((la, lo2) => toUtm(la, lo2, zone), lo, hi, hi / 110900, zone * 6 - 183);
+      return ll && { ll, kind: 'utm' };
+    }
+    if (hi < 1e6 && lo >= 1e4) { // Israel grid: easting is always the smaller number
+      const ll = fromGrid(toItm, lo, hi, 31.7, 35.2);
+      return ll && { ll, kind: 'itm' };
+    }
+    return null;
+  }
+  const searchPin = L.marker([0, 0], Object.assign({
+    icon: L.divIcon({
+      className: 'pin-ic', iconSize: [30, 40], iconAnchor: [15, 39],
+      html: '<svg viewBox="0 0 30 40" width="30" height="40"><path d="M15 39C15 39 2 23.5 2 14a13 13 0 0 1 26 0c0 9.5-13 25-13 25Z" fill="#1F5FA8" stroke="#fff" stroke-width="2"/><circle cx="15" cy="14" r="5" fill="#fff"/></svg>'
+    }), zIndexOffset: 500
+  }, passive));
+  const searchLabel = L.marker([0, 0], Object.assign({ zIndexOffset: 500 }, passive));
+  function clearSearch() {
+    $('search-q').value = '';
+    setLayer(searchPin, false);
+    setLayer(searchLabel, false);
+    $('search-clear').hidden = true;
+  }
+  $('search').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const q = $('search-q').value.trim();
+    if (!q) { $('search-q').focus(); return; }
+    const hit = parseCoord(q);
+    if (!hit) {
+      toast('לא זיהיתי את הנ.צ. אפשר להקליד UTM (36R 712345 3512345), רשת ישראל (219529/626907) או קו רוחב ואורך (31.77, 35.21).');
+      return;
+    }
+    if (!LIMITS.contains(hit.ll)) { toast('הנ.צ. הזה נמצא מחוץ לאזור המפה.'); return; }
+    const ll = hit.ll;
+    searchPin.setLatLng(ll);
+    searchLabel.setLatLng(ll).setIcon(labelIcon(esc(fmtCoord(ll.lat, ll.lng, hit.kind)) + '<small>' + COORD_NAME[hit.kind] + '</small>', 'pin'));
+    setLayer(searchPin, true);
+    setLayer(searchLabel, true);
+    $('search-clear').hidden = false;
+    if (watchId !== null && follow) { follow = false; renderGps(); }
+    map.setView(ll, Math.max(map.getZoom(), 15));
+    $('search-q').blur();
+  });
+  $('search-q').addEventListener('input', () => { $('search-clear').hidden = !$('search-q').value && !map.hasLayer(searchPin); });
+  $('search-q').addEventListener('keydown', (e) => { if (e.key === 'Escape') { clearSearch(); $('search-q').blur(); } });
+  $('search-clear').addEventListener('click', () => { clearSearch(); });
 
   // ---------- Tabs and sheet ----------
   const DRAW_TABS = ['measure', 'route', 'azimuth'];
@@ -1388,6 +1666,7 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
     g.innerHTML = svg;
   })();
 
+  let azScreenDeg = 0;
   const azOrigin = () => az.fromMe ? (fix ? L.latLng(fix.lat, fix.lng) : null) : az.a;
   function addAz(ll) {
     if (az.fromMe) az.b = ll;
@@ -1405,8 +1684,8 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
       azCasing.setLatLngs([a, b]);
       azLine.setLatLngs([a, b]);
       const pa = map.project(a, 16), pb = map.project(b, 16);
-      const screenDeg = Math.atan2(pb.x - pa.x, -(pb.y - pa.y)) / D2R;
-      azEnd.setLatLng(b).setIcon(arrowIcon(screenDeg));
+      azScreenDeg = Math.atan2(pb.x - pa.x, -(pb.y - pa.y)) / D2R;
+      azEnd.setLatLng(b).setIcon(arrowIcon(azScreenDeg + getRot()));
       azLabel.setLatLng(b).setIcon(labelIcon(fmtDeg(deg) + '<small>' + fmtDist(d) + '</small>', 'az'));
       setLayer(azEnd, true);
       setLayer(azLabel, true);
@@ -1518,8 +1797,7 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
     if (moving) {
       headMarker.setLatLng(ll);
       setLayer(headMarker, true);
-      const el = headMarker.getElement();
-      if (el && el.firstChild) el.firstChild.style.transform = 'rotate(' + c.heading.toFixed(0) + 'deg)';
+      turnIcons();
     } else setLayer(headMarker, false);
     if (follow) {
       if (firstFix) map.setView(ll, Math.max(map.getZoom(), 15));
@@ -1531,6 +1809,16 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
     renderGps();
   }
   map.on('dragstart', () => { if (follow && watchId !== null) { follow = false; renderGps(); } });
+
+  // Arrow icons stay upright on a rotated map, so their direction is turned by the map rotation.
+  function turnIcons() {
+    const turn = (m, deg) => {
+      const el = map.hasLayer(m) && m.getElement();
+      if (el && el.firstChild) el.firstChild.style.transform = 'rotate(' + norm(deg).toFixed(1) + 'deg)';
+    };
+    if (fix && typeof fix.heading === 'number' && !isNaN(fix.heading)) turn(headMarker, fix.heading + getRot());
+    turn(azEnd, azScreenDeg + getRot());
+  }
 
   function addTrackPoint(f) {
     const last = track[track.length - 1];
@@ -1630,8 +1918,11 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
 
   // ---------- Start ----------
   applyLayers();
+  const savedRot = settings.view && settings.view[3];
   if (settings.view) map.setView([settings.view[0], settings.view[1]], settings.view[2]);
   else map.fitBounds(ISRAEL);
+  if (savedRot && !rotLocked()) setRot(savedRot);
+  renderCompass();
   const startOpen = settings.open !== false;
   setTab(tab, true);
   if (!startOpen) setTab(tab);
