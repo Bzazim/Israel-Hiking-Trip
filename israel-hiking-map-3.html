@@ -96,10 +96,11 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 
 /* Top right: coordinate search and compass */
 .tr-stack {
-  position: absolute; top: calc(10px + env(safe-area-inset-top, 0px)); right: calc(10px + env(safe-area-inset-right, 0px)); z-index: 940;
+  position: absolute; top: calc(10px + env(safe-area-inset-top, 0px)); right: calc(10px + env(safe-area-inset-right, 0px)); z-index: 1001; /* above Leaflet controls */
   width: min(300px, calc(100% - 72px)); display: flex; flex-direction: column; align-items: flex-start; /* the right edge in RTL */ gap: 8px; pointer-events: none;
 }
 .tr-stack > * { pointer-events: auto; }
+.search-wrap { position: relative; z-index: 2; width: 100%; }
 .search { display: flex; align-items: center; width: 100%; margin: 0; background: var(--panel); border-radius: 999px; box-shadow: 0 1px 6px rgba(0, 0, 0, .25); }
 .search input {
   flex: 1; min-width: 0; border: 0; background: transparent; color: var(--ink); font-size: 16px; padding: 10px 4px 10px 0; padding-inline-start: 14px;
@@ -111,6 +112,14 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .search:focus-within { box-shadow: 0 0 0 2px var(--blaze-blue), 0 1px 6px rgba(0, 0, 0, .25); }
 .search button { flex: none; width: 38px; height: 40px; display: grid; place-items: center; padding: 0; border: 0; background: none; color: var(--muted); cursor: pointer; border-radius: 999px; }
 .search button[type="submit"] { color: var(--ink); }
+.results {
+  position: absolute; top: calc(100% + 6px); left: 0; right: 0; margin: 0; padding: 4px 0; list-style: none;
+  background: var(--panel); border-radius: 14px; box-shadow: 0 4px 18px rgba(0, 0, 0, .22); max-height: min(50vh, 340px); overflow-y: auto;
+}
+.results button { display: block; width: 100%; text-align: right; border: 0; background: none; color: var(--ink); padding: 9px 14px; font-size: 15px; cursor: pointer; }
+.results button:hover, .results button[aria-current="true"] { background: var(--chip-bg); }
+.results small { display: block; margin-top: 1px; font-size: 12.5px; color: var(--muted); }
+.results .msg { padding: 10px 14px; font-size: 14px; line-height: 1.4; color: var(--muted); }
 .compass {
   position: relative; width: 52px; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 5px 0 6px;
   border: 0; border-radius: 26px; background: var(--panel); color: var(--ink); box-shadow: 0 1px 6px rgba(0, 0, 0, .25);
@@ -139,6 +148,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 }
 .map-label .lbl.az { color: #B0287A; font-size: 15px; }
 .map-label .lbl.pin { transform: translate(-50%, calc(-100% - 42px)); direction: ltr; }
+.map-label .lbl.pin.place { direction: rtl; }
 .map-label .lbl small { display: block; font-size: 11px; font-weight: 400; color: #5C665F; }
 .wp span {
   display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
@@ -267,7 +277,7 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
 .rec-line strong { font-variant-numeric: tabular-nums; font-weight: 600; }
 
 .banner {
-  position: absolute; top: calc(12px + env(safe-area-inset-top, 0px)); left: 56px; right: 12px; z-index: 950;
+  position: absolute; top: calc(12px + env(safe-area-inset-top, 0px)); left: 56px; right: 12px; z-index: 1002;
   max-width: 460px; margin-inline-start: auto; background: var(--panel); color: var(--ink);
   border-radius: 14px; border-inline-start: 4px solid var(--blaze-red); box-shadow: 0 4px 18px rgba(0, 0, 0, .22);
   padding: 12px 14px;
@@ -292,9 +302,11 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
   <div class="crosshair" aria-hidden="true"></div>
   <div class="banner" id="banner" role="alert" hidden><strong>המפה לא נטענת</strong><p id="banner-text"></p></div>
   <div class="tr-stack">
+    <div class="search-wrap">
     <form class="search" id="search" role="search" autocomplete="off">
-      <input type="search" id="search-q" enterkeyhint="search" spellcheck="false" placeholder="חיפוש נ.צ."
-        aria-label="חיפוש נקודת ציון" title="UTM, למשל 36R 712345 3512345 · רשת ישראל, למשל 219529/626907 · קו רוחב ואורך, למשל 31.77, 35.21">
+      <input type="search" id="search-q" enterkeyhint="search" spellcheck="false" placeholder="חיפוש מקום או נ.צ."
+        aria-label="חיפוש מקום או נקודת ציון" aria-controls="search-results"
+        title="מקום, למשל חניון נחל עמוד · UTM, למשל 36R 712345 3512345 · רשת ישראל, למשל 219529/626907 · קו רוחב ואורך, למשל 31.77, 35.21">
       <button type="button" id="search-clear" aria-label="ניקוי החיפוש" hidden>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
       </button>
@@ -302,6 +314,8 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
         <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg>
       </button>
     </form>
+    <ul class="results" id="search-results" hidden></ul>
+    </div>
     <button type="button" class="compass" id="compass">
       <svg viewBox="0 0 44 44" aria-hidden="true">
         <circle cx="22" cy="22" r="20" class="cmp-ring"/>
@@ -1417,8 +1431,163 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
     }), zIndexOffset: 500
   }, passive));
   const searchLabel = L.marker([0, 0], Object.assign({ zIndexOffset: 500 }, passive));
+  function showPin(ll, html, cls) {
+    searchPin.setLatLng(ll);
+    searchLabel.setLatLng(ll).setIcon(labelIcon(html, cls));
+    setLayer(searchPin, true);
+    setLayer(searchLabel, true);
+    $('search-clear').hidden = false;
+    if (watchId !== null && follow) { follow = false; renderGps(); }
+  }
+
+  // ---------- Place search ----------
+  // Names come from OpenStreetMap: Nominatim first, Photon as a backup. "חניון X" (or "חניון לילה X") finds X
+  // and then the car park (or overnight campsite) there, since trailhead car parks are often mapped without a full name.
+  const PLACE_TYPE = {
+    city: 'עיר', town: 'עיר', village: 'יישוב', hamlet: 'יישוב', isolated_dwelling: 'יישוב', locality: 'מקום', suburb: 'שכונה', neighbourhood: 'שכונה',
+    peak: 'פסגה', hill: 'גבעה', spring: 'מעיין', stream: 'נחל', river: 'נחל', wadi: 'נחל', valley: 'עמק', cliff: 'מצוק', cave_entrance: 'מערה',
+    ridge: 'רכס', water: 'מקווה מים', waterfall: 'מפל', parking: 'חניון', camp_site: 'חניון לילה', picnic_site: 'חניון יום', viewpoint: 'תצפית',
+    attraction: 'אתר', nature_reserve: 'שמורת טבע', protected_area: 'שמורת טבע', national_park: 'גן לאומי', park: 'פארק', archaeological_site: 'אתר עתיקות',
+    ruins: 'חורבה', museum: 'מוזיאון', information: 'מידע לטיילים', beach: 'חוף', forest: 'יער', wood: 'יער', hiking: 'שביל', foot: 'שביל'
+  };
+  const FACILITY = [
+    { re: /^חניון\s+לילה\s+/, tag: '["tourism"="camp_site"]', type: 'camp_site' },
+    { re: /^(חניון|חניית|חנייה|חניה)\s+/, tag: '["amenity"="parking"]', type: 'parking' }
+  ];
+  const GENERIC = new Set(['נחל', 'הר', 'עין', 'גבעת', 'חניון', 'לילה', 'שמורת', 'גן', 'לאומי', 'יער', 'מצפה', 'תצפית', 'חורבת', 'של']);
+  const ISRAEL_BBOX = [LIMITS.getSouth(), LIMITS.getWest(), LIMITS.getNorth(), LIMITS.getEast()].join(',');
+  const typeName = (t) => PLACE_TYPE[t] || '';
+
+  async function getJson(url, signal) {
+    const r = await fetch(url, { signal });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  }
+  async function nominatim(q, signal) {
+    const list = await getJson('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=8&accept-language=he&countrycodes=il,ps&bounded=1&viewbox='
+      + [LIMITS.getWest(), LIMITS.getNorth(), LIMITS.getEast(), LIMITS.getSouth()].join(',') + '&q=' + encodeURIComponent(q), signal);
+    return list.map((r) => {
+      const bb = (r.boundingbox || []).map(Number);
+      return {
+        name: r.name || r.display_name.split(',')[0], type: r.type, ll: L.latLng(+r.lat, +r.lon),
+        area: r.display_name.split(',').slice(1, 3).map((x) => x.trim()).filter(Boolean).join(', '),
+        bounds: bb.length === 4 ? L.latLngBounds([bb[0], bb[2]], [bb[1], bb[3]]) : null
+      };
+    });
+  }
+  async function photon(q, signal) {
+    const data = await getJson('https://photon.komoot.io/api/?limit=8&bbox=' + [LIMITS.getWest(), LIMITS.getSouth(), LIMITS.getEast(), LIMITS.getNorth()].join(',')
+      + '&q=' + encodeURIComponent(q), signal);
+    return (data.features || []).filter((f) => f.properties && f.properties.name).map((f) => {
+      const p = f.properties, x = p.extent;
+      return {
+        name: p.name, type: p.osm_value, ll: L.latLng(f.geometry.coordinates[1], f.geometry.coordinates[0]),
+        area: [p.city, p.county || p.state].filter((v) => v && v !== p.name).join(', '),
+        bounds: x && x.length === 4 ? L.latLngBounds([x[3], x[0]], [x[1], x[2]]) : null
+      };
+    });
+  }
+  async function geocode(q, signal) {
+    let out = [];
+    try { out = await nominatim(q, signal); } catch (e) { if (signal.aborted) throw e; }
+    if (!out.length) { try { out = await photon(q, signal); } catch (e) { if (signal.aborted) throw e; } }
+    return out.filter((r) => LIMITS.contains(r.ll));
+  }
+  // Car parks (or campsites) at a place: ones whose name shares a word with it come first, then the nearest.
+  async function facilitySearch(f, rest, base, signal) {
+    const words = rest.split(/\s+/).filter((w) => w.length > 1 && !GENERIC.has(w));
+    const big = base.bounds && base.bounds.getNorthEast().distanceTo(base.bounds.getSouthWest()) > 2000;
+    const near = big ? base.bounds.pad(0.1) : L.latLngBounds([base.ll.lat - 0.025, base.ll.lng - 0.03], [base.ll.lat + 0.025, base.ll.lng + 0.03]);
+    const nb = [near.getSouth(), near.getWest(), near.getNorth(), near.getEast()].map((v) => v.toFixed(4)).join(',');
+    const re = words.map((w) => w.replace(/[.*+?^${}()|[\]\\"]/g, '')).filter(Boolean).join('|');
+    const data = await overpass('[out:json][timeout:25];(nwr' + f.tag + '(' + nb + ');'
+      + (re ? 'nwr' + f.tag + '["name"~"' + re + '"](' + ISRAEL_BBOX + ');' : '') + ');out center tags 60;');
+    if (signal.aborted) return [];
+    return (data.elements || []).map((el) => {
+      const t = el.tags || {}, name = t['name:he'] || t.name || '';
+      const ll = L.latLng(el.lat != null ? el.lat : el.center.lat, el.lon != null ? el.lon : el.center.lon);
+      const isNear = near.contains(ll);
+      return {
+        name: name || (typeName(f.type) + ' ללא שם'), type: f.type, ll, bounds: null, area: isNear ? 'ליד ' + base.name : '',
+        // near and named after the place, then anything near (closest first), then same-named ones elsewhere
+        score: (isNear ? 2e6 : 0) + words.filter((w) => name.includes(w)).length * 1e6 - ll.distanceTo(base.ll)
+      };
+    }).sort((x, y) => y.score - x.score).slice(0, 6);
+  }
+
+  let searchCtl = null, results = [];
+  function renderResults(msg, current) {
+    const ul = $('search-results');
+    ul.replaceChildren();
+    if (msg) {
+      const li = document.createElement('li');
+      li.className = 'msg';
+      li.textContent = msg;
+      ul.append(li);
+    }
+    results.forEach((r, i) => {
+      const li = document.createElement('li'), b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = r.name;
+      if (i === current) b.setAttribute('aria-current', 'true');
+      const sub = [typeName(r.type), r.area].filter(Boolean).join(' · ');
+      if (sub) { const sm = document.createElement('small'); sm.textContent = sub; b.append(sm); }
+      b.addEventListener('click', () => { goToPlace(r); hideResults(); });
+      li.append(b);
+      ul.append(li);
+    });
+    ul.hidden = !msg && !results.length;
+  }
+  const hideResults = () => { $('search-results').hidden = true; };
+  function goToPlace(r) {
+    showPin(r.ll, esc(r.name) + (typeName(r.type) ? '<small>' + typeName(r.type) + '</small>' : ''), 'pin place');
+    const b = r.bounds;
+    if (b && r.type !== 'parking' && r.type !== 'camp_site' && b.getNorthEast().distanceTo(b.getSouthWest()) > 400) map.fitBounds(b, { maxZoom: 15, padding: [30, 30] });
+    else map.setView(r.ll, Math.max(map.getZoom(), 15));
+  }
+  async function placeSearch(q) {
+    if (searchCtl) searchCtl.abort();
+    const ctl = searchCtl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 30000);
+    results = [];
+    renderResults('מחפש…');
+    try {
+      const f = FACILITY.find((x) => x.re.test(q)), rest = f ? q.replace(f.re, '').trim() : '';
+      let found = await geocode(q, ctl.signal);
+      if (f && rest) {
+        const bases = await geocode(rest, ctl.signal);
+        if (bases[0]) {
+          let fac = [];
+          try { fac = await facilitySearch(f, rest, bases[0], ctl.signal); } catch (e) { if (ctl.signal.aborted) throw e; }
+          // the exact match (if the car park is mapped with this name) first, then car parks there, then the place itself
+          found = found.filter((r) => r.type === f.type).concat(fac, found.filter((r) => r.type !== f.type), bases.slice(0, 3));
+        }
+      }
+      const seen = new Set();
+      results = found.filter((r) => {
+        const k = r.name + '|' + r.ll.lat.toFixed(3) + '|' + r.ll.lng.toFixed(3);
+        return !seen.has(k) && seen.add(k);
+      }).slice(0, 8);
+      if (ctl !== searchCtl) return;
+      if (!results.length) { renderResults('לא מצאתי מקום בשם הזה. נסה שם אחר, או הקלד נ.צ.'); return; }
+      goToPlace(results[0]);
+      if (results.length > 1) renderResults('', 0); else hideResults();
+      $('search-q').blur();
+    } catch (e) {
+      if (ctl === searchCtl) renderResults(navigator.onLine === false ? 'אין חיבור לאינטרנט, אז אפשר לחפש רק נ.צ.' : 'שירות החיפוש לא זמין כרגע. נסה שוב בעוד רגע.');
+    } finally {
+      clearTimeout(timer);
+      if (ctl === searchCtl) searchCtl = null;
+    }
+  }
+
+  // Text with words in it is a place name; digits with at most a zone letter or N/E marks is a coordinate.
+  const looksLikeCoord = (q) => /\d/.test(q) && !/[֐-׿]/.test(q) && !/[a-z]{2,}/i.test(q.replace(/^\s*\d{1,2}\s*[a-z](?![a-z])/i, ''));
   function clearSearch() {
+    if (searchCtl) { searchCtl.abort(); searchCtl = null; }
     $('search-q').value = '';
+    results = [];
+    hideResults();
     setLayer(searchPin, false);
     setLayer(searchLabel, false);
     $('search-clear').hidden = true;
@@ -1427,6 +1596,8 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
     e.preventDefault();
     const q = $('search-q').value.trim();
     if (!q) { $('search-q').focus(); return; }
+    if (!looksLikeCoord(q)) { placeSearch(q); return; }
+    hideResults();
     const hit = parseCoord(q);
     if (!hit) {
       toast('לא זיהיתי את הנ.צ. אפשר להקליד UTM (36R 712345 3512345), רשת ישראל (219529/626907) או קו רוחב ואורך (31.77, 35.21).');
@@ -1434,18 +1605,15 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
     }
     if (!LIMITS.contains(hit.ll)) { toast('הנ.צ. הזה נמצא מחוץ לאזור המפה.'); return; }
     const ll = hit.ll;
-    searchPin.setLatLng(ll);
-    searchLabel.setLatLng(ll).setIcon(labelIcon(esc(fmtCoord(ll.lat, ll.lng, hit.kind)) + '<small>' + COORD_NAME[hit.kind] + '</small>', 'pin'));
-    setLayer(searchPin, true);
-    setLayer(searchLabel, true);
-    $('search-clear').hidden = false;
-    if (watchId !== null && follow) { follow = false; renderGps(); }
+    showPin(ll, esc(fmtCoord(ll.lat, ll.lng, hit.kind)) + '<small>' + COORD_NAME[hit.kind] + '</small>', 'pin');
     map.setView(ll, Math.max(map.getZoom(), 15));
     $('search-q').blur();
   });
   $('search-q').addEventListener('input', () => { $('search-clear').hidden = !$('search-q').value && !map.hasLayer(searchPin); });
+  $('search-q').addEventListener('focus', () => { if (results.length) renderResults('', -1); });
   $('search-q').addEventListener('keydown', (e) => { if (e.key === 'Escape') { clearSearch(); $('search-q').blur(); } });
   $('search-clear').addEventListener('click', () => { clearSearch(); });
+  map.on('dragstart click', hideResults);
 
   // ---------- Tabs and sheet ----------
   const DRAW_TABS = ['measure', 'route', 'azimuth'];
