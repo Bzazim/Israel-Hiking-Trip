@@ -6,7 +6,12 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#FBFBF8">
+<meta name="apple-mobile-web-app-title" content="מפת טיולים">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>מפת טיולים בישראל</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600&display=swap" rel="stylesheet">
@@ -488,6 +493,12 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
 </div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+// Installable app: register the service worker when served from the web (not from a local file).
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+}
+</script>
 
 <!-- What's new: edit the text here and raise data-version, and everyone sees it again, also those who ticked "don't show". -->
 <dialog class="news" id="news" data-version="3" aria-labelledby="news-title">
