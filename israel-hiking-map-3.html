@@ -66,13 +66,13 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .leaflet-container { background: var(--map-bg); font-family: inherit; }
 #map.drawing, #map.drawing .leaflet-interactive { cursor: crosshair; }
 .leaflet-top { top: env(safe-area-inset-top, 0px); }
-.leaflet-top.leaflet-right { top: calc(env(safe-area-inset-top, 0px) + 148px); } /* below the search box and compass */
+.leaflet-top.leaflet-right .leaflet-control-attribution { margin: 0; } /* tucked into the top right corner, above the search box */
 .leaflet-left { left: env(safe-area-inset-left, 0px); }
 .leaflet-right { right: env(safe-area-inset-right, 0px); }
 .leaflet-bottom { bottom: 16px; }
 .leaflet-bar a { background: var(--panel); color: var(--ink); border-bottom-color: var(--line); }
 .leaflet-bar a:hover { background: var(--chip-bg); color: var(--ink); }
-.leaflet-control-attribution { font-size: 10px; line-height: 1.35; max-width: 58vw; border-radius: 0 0 0 8px; direction: ltr; }
+.leaflet-control-attribution { font-size: 10px; line-height: 1.35; max-width: calc(100vw - 70px); border-radius: 0 0 0 8px; direction: ltr; }
 .leaflet-control-scale-line { background: rgba(255, 255, 255, .8); color: #1F2A24; border-color: #1F2A24; font-size: 11px; }
 .loc-btn {
   width: 34px; height: 34px; display: grid; place-items: center; padding: 0; cursor: pointer;
@@ -96,7 +96,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 
 /* Top right: coordinate search and compass */
 .tr-stack {
-  position: absolute; top: calc(10px + env(safe-area-inset-top, 0px)); right: calc(10px + env(safe-area-inset-right, 0px)); z-index: 1001; /* above Leaflet controls */
+  position: absolute; top: calc(6px + var(--attr-h, 14px) + env(safe-area-inset-top, 0px)); right: calc(10px + env(safe-area-inset-right, 0px)); z-index: 1001; /* above Leaflet controls */
   width: min(300px, calc(100% - 72px)); display: flex; flex-direction: column; align-items: flex-start; /* the right edge in RTL */ gap: 8px; pointer-events: none;
 }
 .tr-stack > * { pointer-events: auto; }
@@ -679,6 +679,10 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
   };
   L.control.zoom({ position: 'topleft', zoomInTitle: 'התקרבות', zoomOutTitle: 'התרחקות' }).addTo(map);
   const attribution = L.control.attribution({ position: 'topright', prefix: '<a href="https://leafletjs.com">Leaflet</a>' }).addTo(map);
+  // The search box and compass sit just below the credits line, however many lines it wraps to.
+  const fitAttr = () => document.documentElement.style.setProperty('--attr-h', attribution.getContainer().offsetHeight + 'px');
+  if ('ResizeObserver' in window) new ResizeObserver(fitAttr).observe(attribution.getContainer());
+  fitAttr();
   L.control.scale({ position: 'bottomleft', imperial: false, maxWidth: 110 }).addTo(map);
   addPane('contours', 260);
   addPane('roads', 340);
