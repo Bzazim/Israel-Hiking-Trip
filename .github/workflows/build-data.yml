@@ -1,0 +1,42 @@
+# Builds the trail, dirt road and place-name data that ships with the app (data/),
+# from the latest OpenStreetMap extract of Israel, and commits it to the branch it ran on.
+name: Build map data
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ccr-cbdd484b-alvpyt]
+    paths: [tools/build_data.py, .github/workflows/build-data.yml]
+  schedule:
+    - cron: '23 2 1 * *'   # monthly, on the default branch
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-data-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install osmium==4.3.2
+      - name: Download OpenStreetMap extract (Geofabrik)
+        run: curl -fsSL --retry 3 -o israel.osm.pbf https://download.geofabrik.de/asia/israel-and-palestine-latest.osm.pbf
+      - run: python tools/build_data.py israel.osm.pbf data
+      - run: du -sh data data/hike data/topo; ls data/hike | wc -l; ls data/topo | wc -l; ls -la data/*.json
+      - name: Commit data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A data
+          if git diff --cached --quiet; then echo "No changes"; exit 0; fi
+          git commit -m "Update map data from OpenStreetMap ($(date -u +%Y-%m-%d))"
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
