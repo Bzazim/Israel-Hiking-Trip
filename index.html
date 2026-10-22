@@ -501,21 +501,14 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
 </script>
 
 <!-- What's new: edit the text here and raise data-version, and everyone sees it again, also those who ticked "don't show". -->
-<dialog class="news" id="news" data-version="4" aria-labelledby="news-title">
+<dialog class="news" id="news" data-version="5" aria-labelledby="news-title">
   <h2 id="news-title">מה חדש?</h2>
   <ol>
     <li>בניית ציר הליכה</li>
     <li>מדידת מרחק</li>
     <li>בדיקת אזימוטים</li>
-    <li>השבילים המסומנים ושבילי האופניים מופיעים במפה מיד, בלי לחכות לטעינה</li>
+    <li>השבילים, דרכי העפר ושמות היישובים מובנים במפה ומופיעים מיד, בלי לחכות לטעינה</li>
   </ol>
-  <div class="news-alert"><strong>שים לב!</strong>
-    <ul>
-      <li>במפה הטופוגרפית, טעינת דרכי העפר והשבילים לוקחת זמן. תן לתוכנה לטעון ואל תזיז את המפה, כדי שהם יוכלו להיטען באופן מלא. הטעינה לוקחת כמה דקות, אנא חכה.</li>
-      <li>אם לא רשום "טוען פרטים", אנא רענן את העמוד.</li>
-      <li>ברגע שהאפליקציה טוענת את דרכי העפר והשבילים הם נשמרים ל־14 יום, ולאחר מכן צריך לטעון אותם שוב.</li>
-    </ul>
-  </div>
   <div class="news-foot">
     <label><input type="checkbox" id="news-hide">לא להציג שוב עד העדכון הבא</label>
     <button type="button" class="btn primary" id="news-ok">הבנתי</button>
@@ -1029,15 +1022,19 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     const k = b.dataset.overlay;
     settings[k] = !settings[k];
     applyLayers();
+    if ((k === 'hiking' || k === 'mtb') && settings[k] && map.getZoom() < TRAIL_MIN_ZOOM) toast('התקרב למפה כדי לראות את השבילים.');
     if (k === 'tracks' && settings[k] && map.getZoom() < 13) toast('התקרב למפה כדי לראות דרכי עפר ושבילים.');
     loadAll();
   }));
 
-  // ---------- Marked trails and bike trails: ready-made tiles from Waymarked Trails (OpenStreetMap routes) ----------
-  // They show at once at every zoom, with nothing to load first. A tap on a trail asks OpenStreetMap
-  // (one small Overpass query) for its name and marking colour.
-  const TRAIL_INFO_ZOOM = 12;
-  const OVERPASS = [
+  // ---------- Trails, dirt roads, streams and place names: built into the app ----------
+  // They live in the data/ folder next to the app, made from OpenStreetMap by tools/build_data.py
+  // (a GitHub job refreshes them monthly). Each 0.2° square is a small file from the app's own site,
+  // so it shows as soon as the map reaches it, with no waiting on outside servers.
+  // Israeli marked trails are mapped in OSM with their marking colour, so each is drawn in its real
+  // colour: red, blue, green, black, and the Israel Trail.
+  const TRAIL_MIN_ZOOM = 11, TOPO_DETAIL_ZOOM = 13;
+  const OVERPASS = [ // still used by the place search
     'https://overpass-api.de/api/interpreter',
     'https://overpass.kumi.systems/api/interpreter',
     'https://maps.mail.ru/osm/tools/overpass/api/interpreter'
@@ -1049,66 +1046,61 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
   };
   const OSM_DATA_ATTR = 'Data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
   addPane('trailLines', 360);
-  const WMT_ATTR = 'Trails &copy; <a href="https://waymarkedtrails.org">Waymarked Trails</a> (CC-BY-SA)';
-  const trailTiles = {
-    hiking: L.tileLayer('https://tile.waymarkedtrails.org/hiking/{z}/{x}/{y}.png', { pane: 'trailLines', bounds: LIMITS, maxNativeZoom: 18, maxZoom: 19, attribution: WMT_ATTR }),
-    mtb: L.tileLayer('https://tile.waymarkedtrails.org/mtb/{z}/{x}/{y}.png', { pane: 'trailLines', bounds: LIMITS, maxNativeZoom: 18, maxZoom: 19, attribution: WMT_ATTR })
-  };
+  const trailRenderer = L.canvas({ pane: 'trailLines', tolerance: 8 });
+  const trailGroups = { hiking: L.layerGroup(), mtb: L.layerGroup() };
+  const seenTrailWays = new Set();
   let overpassIdx = 0, osmAttrOn = false;
+  try { indexedDB.deleteDatabase('ihk-cache'); } catch (e) {} // store of the old loading method, no longer used
 
-  function markOf(tags) {
-    const pick = (v) => { v = (v || '').toLowerCase().trim(); return MARK[v] ? v : null; };
-    let c = pick(tags.colour || tags.color);
-    if (!c) {
-      const sym = (tags['osmc:symbol'] || '').toLowerCase().split(':');
-      c = pick((sym[2] || '').split('_')[0]) || pick(sym[0]);
-    }
-    return c;
+  // A line is [lat0, lon0, dlat1, dlon1, ...] in 1e-5 degrees.
+  function decode(g) {
+    let y = g[0], x = g[1];
+    const out = [[y / 1e5, x / 1e5]];
+    for (let i = 2; i < g.length; i += 2) { y += g[i]; x += g[i + 1]; out.push([y / 1e5, x / 1e5]); }
+    return out;
   }
-  const isIsraelTrail = (t) => /שביל ישראל/.test((t.name || '') + (t['name:he'] || '')) || /israel national trail/i.test((t['name:en'] || '') + (t.name || ''));
 
-  // Name and marking of the trails at a tapped point.
-  let trailAsk = 0;
-  async function trailInfoAt(ll) {
-    const ask = ++trailAsk;
-    const r = Math.max(8, Math.round(14 * 156543 * Math.cos(ll.lat * D2R) / Math.pow(2, map.getZoom()))); // about 14 px
-    const kinds = [settings.hiking && 'hiking|foot', settings.mtb && 'mtb|bicycle'].filter(Boolean).join('|');
-    let data;
-    try {
-      data = await overpass('[out:json][timeout:10];way(around:' + r + ',' + ll.lat.toFixed(6) + ',' + ll.lng.toFixed(6) + ')->.w;'
-        + 'rel(bw.w)["route"~"^(' + kinds + ')$"];out tags;', 15000);
-    } catch (e) { return; }
-    if (ask !== trailAsk || DRAW_TABS.includes(tab)) return;
-    const seen = new Set(), rows = [];
-    (data.elements || []).forEach((el) => {
-      const t = el.tags || {};
-      const kind = t.route === 'mtb' || t.route === 'bicycle' ? 'mtb' : 'hiking';
-      const mark = markOf(t), int = kind === 'hiking' && isIsraelTrail(t);
-      if (kind === 'hiking' && !mark && !int) return; // walking routes without a marking colour aren't marked trails
-      const name = t['name:he'] || t.name || (kind === 'mtb' ? 'שביל אופניים' : 'שביל מסומן');
-      if (seen.has(name + mark)) return;
-      seen.add(name + mark);
-      rows.push({ name, kind, mark, int });
-    });
-    if (!rows.length) return;
+  function trailPopup(ll, name, kind, int, mark) {
+    if (DRAW_TABS.includes(tab)) return; // in drawing tools a tap adds a point instead
     const box = document.createElement('div');
-    rows.slice(0, 4).forEach((x, i) => {
-      const title = document.createElement('div');
-      title.className = 'pop-title';
-      if (i) title.style.marginTop = '10px';
-      title.textContent = x.name;
-      const sub = document.createElement('div');
-      sub.className = 'pop-sub';
-      if (x.mark && !x.int) {
-        const bl = document.createElement('span');
-        bl.className = 'blaze';
-        bl.style.setProperty('--c', MARK[x.mark][0]);
-        sub.append(bl);
-      }
-      sub.append(x.int ? 'שביל ישראל' : (x.kind === 'mtb' ? 'שביל אופניים' : 'שביל הליכה') + (x.mark ? ', סימון ' + MARK[x.mark][1] : ''));
-      box.append(title, sub);
-    });
+    const title = document.createElement('div');
+    title.className = 'pop-title';
+    title.textContent = name || (kind === 'mtb' ? 'שביל אופניים' : 'שביל מסומן');
+    const sub = document.createElement('div');
+    sub.className = 'pop-sub';
+    if (mark && !int) {
+      const bl = document.createElement('span');
+      bl.className = 'blaze';
+      bl.style.setProperty('--c', MARK[mark][0]);
+      sub.append(bl);
+    }
+    sub.append(int ? 'שביל ישראל' : (kind === 'mtb' ? 'שביל אופניים' : 'שביל הליכה') + (mark ? ', סימון ' + MARK[mark][1] : ''));
+    box.append(title, sub);
     L.popup({ closeButton: false, offset: [0, -4] }).setLatLng(ll).setContent(box).openOn(map);
+  }
+
+  // One square of trails: { r: [[name, mark, 'h'|'m', israelTrail], ...], w: [[wayId, [route...], line], ...] }
+  function drawHike(d) {
+    const byRoute = new Map();
+    d.w.forEach(([id, rs, g]) => {
+      if (seenTrailWays.has(id)) return; // a way crossing squares is in each of them
+      seenTrailWays.add(id);
+      const line = decode(g);
+      rs.forEach((r) => { if (!byRoute.has(r)) byRoute.set(r, []); byRoute.get(r).push(line); });
+    });
+    byRoute.forEach((lines, r) => {
+      const [name, m, k, nat] = d.r[r];
+      const kind = k === 'm' ? 'mtb' : 'hiking', mark = MARK[m] ? m : null, int = nat === 1;
+      const color = int ? MARK.orange[0] : mark ? MARK[mark][0] : kind === 'mtb' ? '#1F5FA8' : '#C62E2E';
+      const g = trailGroups[kind];
+      L.polyline(lines, { renderer: trailRenderer, interactive: false, color: mark === 'white' ? '#333333' : '#FFFFFF', weight: 6.5, opacity: .9 }).addTo(g);
+      if (int) L.polyline(lines, { renderer: trailRenderer, interactive: false, color: MARK.blue[0], weight: 3.5 }).addTo(g);
+      const top = L.polyline(lines, {
+        renderer: trailRenderer, color, weight: 3.5, lineCap: 'butt',
+        dashArray: int ? '10 10' : kind === 'mtb' ? '8 5' : null
+      }).addTo(g);
+      top.on('click', (e) => trailPopup(e.latlng, name, kind, int, mark));
+    });
   }
 
   async function overpass(query, wait) {
@@ -1137,8 +1129,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     throw lastErr;
   }
 
-  // ---------- Topographic map details from OpenStreetMap: dirt roads, paths, streams, peaks ----------
-  const TOPO_DETAIL_ZOOM = 13;
+  // ---------- Topographic map details: dirt roads, paths, streams, peaks, springs and place names ----------
   addPane('streams', 300);
   const streamRenderer = L.canvas({ pane: 'streams' });
   const roadRenderer = L.canvas({ pane: 'roads' });
@@ -1147,68 +1138,52 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     placesMajor: L.layerGroup(), placesVillage: L.layerGroup(), placesMinor: L.layerGroup()
   };
   const labelItems = { placesMajor: [], placesVillage: [], placesMinor: [], peaks: [] };
-  const seenWays = new Set(), seenNodes = new Set();
-  const ROAD_STYLE = {
-    track: { group: 'tracks', color: '#2F2620', weight: 1.6, dash: '7 4' },
-    path: { group: 'tracks', color: '#2F2620', weight: 1.1, dash: '2 4' }
-  };
-  const PLACE_CLASS = {
-    city: ['tl-city', 'placesMajor'], town: ['tl-town', 'placesMajor'], village: ['tl-village', 'placesVillage'],
-    hamlet: ['tl-hamlet', 'placesMinor'], isolated_dwelling: ['tl-hamlet', 'placesMinor'], locality: ['tl-locality', 'placesMinor']
-  };
+  const seenWays = new Set(), seenPoints = new Set();
+  const TRACK_STYLE = [
+    { color: '#2F2620', weight: 1.6, dash: '7 4' }, // dirt road (track)
+    { color: '#2F2620', weight: 1.1, dash: '2 4' }  // path
+  ];
+  // In the order of the place codes in data/places.json.
+  const PLACE_CLASS = [
+    ['tl-city', 'placesMajor'], ['tl-town', 'placesMajor'], ['tl-village', 'placesVillage'],
+    ['tl-hamlet', 'placesMinor'], ['tl-hamlet', 'placesMinor'], ['tl-locality', 'placesMinor']
+  ];
   const esc = (v) => String(v).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 
-  function addPointLabel(el) {
-    const t = el.tags, name = t['name:he'] || t.name;
-    let cls, group, html;
-    if (t.place && PLACE_CLASS[t.place]) {
-      if (!name) return;
-      [cls, group] = PLACE_CLASS[t.place];
-      html = esc(name);
-    } else if (t.natural === 'peak') {
-      const ele = parseFloat(t.ele);
-      if (!name && isNaN(ele)) return;
-      cls = 'tl-peak';
-      group = 'peaks';
-      html = '<i>▲</i>' + esc(name || '') + (isNaN(ele) ? '' : ' <b>' + Math.round(ele) + '</b>');
-    } else if (t.natural === 'spring') {
-      cls = 'tl-spring';
-      group = 'peaks';
-      html = '<i>●</i>' + esc(name || '');
-    } else return;
-    const marker = L.marker([el.lat, el.lon], {
+  function addLabel(lat, lon, cls, group, html) {
+    const marker = L.marker([lat, lon], {
       pane: 'labels', interactive: false, keyboard: false,
       icon: L.divIcon({ className: 'tlabel ' + cls, html: '<span>' + html + '</span>', iconSize: [0, 0] })
     });
-    labelItems[group].push({ ll: L.latLng(el.lat, el.lon), marker });
+    labelItems[group].push({ ll: L.latLng(lat, lon), marker });
   }
 
-  function drawTopo(data) {
-    const buckets = {};
-    (data.elements || []).forEach((el) => {
-      if (el.type === 'way' && el.geometry) {
-        if (seenWays.has(el.id)) return;
-        seenWays.add(el.id);
-        const t = el.tags || {};
-        let key = null;
-        if (t.waterway) key = t.waterway === 'river' ? 'river' : 'stream';
-        else if (t.highway) { const h = t.highway.replace('_link', ''); if (ROAD_STYLE[h]) key = h; }
-        if (key) (buckets[key] = buckets[key] || []).push(el.geometry.map((q) => [q.lat, q.lon]));
-      } else if (el.type === 'node' && el.tags && !seenNodes.has(el.id)) {
-        seenNodes.add(el.id);
-        addPointLabel(el);
-      }
+  // One square: { t: [[wayId, 0 track | 1 path | 2 stream | 3 river, line], ...], p: [[lat, lon, 0 peak | 1 spring, name, ele], ...] }
+  function drawTopo(d) {
+    const buckets = [[], [], [], []];
+    d.t.forEach(([id, k, g]) => {
+      if (seenWays.has(id)) return;
+      seenWays.add(id);
+      buckets[k].push(decode(g));
     });
-    Object.keys(buckets).forEach((key) => {
-      const lines = buckets[key];
-      if (key === 'river' || key === 'stream') {
-        L.polyline(lines, { renderer: streamRenderer, interactive: false, color: '#2E7DBF', weight: key === 'river' ? 2.2 : 1.3, opacity: .9 }).addTo(topoGroups.streams);
-        return;
-      }
-      const st = ROAD_STYLE[key], g = topoGroups[st.group];
-      if (st.casing) L.polyline(lines, { renderer: roadRenderer, interactive: false, color: st.casing, weight: st.weight + 2 }).addTo(g);
-      L.polyline(lines, { renderer: roadRenderer, interactive: false, color: st.color, weight: st.weight, dashArray: st.dash || null }).addTo(g);
+    TRACK_STYLE.forEach((st, k) => {
+      if (buckets[k].length) L.polyline(buckets[k], { renderer: roadRenderer, interactive: false, color: st.color, weight: st.weight, dashArray: st.dash }).addTo(topoGroups.tracks);
     });
+    [2, 3].forEach((k) => {
+      if (buckets[k].length) L.polyline(buckets[k], { renderer: streamRenderer, interactive: false, color: '#2E7DBF', weight: k === 3 ? 2.2 : 1.3, opacity: .9 }).addTo(topoGroups.streams);
+    });
+    d.p.forEach(([y, x, k, name, ele]) => {
+      const key = y + ',' + x;
+      if (seenPoints.has(key)) return;
+      seenPoints.add(key);
+      if (k === 0) addLabel(y / 1e5, x / 1e5, 'tl-peak', 'peaks', '<i>▲</i>' + esc(name || '') + (ele == null ? '' : ' <b>' + ele + '</b>'));
+      else addLabel(y / 1e5, x / 1e5, 'tl-spring', 'peaks', '<i>●</i>' + esc(name || ''));
+    });
+    cullLabels();
+  }
+  // data/places.json: [[lat, lon, place code, name], ...] for the whole country
+  function drawPlaces(list) {
+    list.forEach(([y, x, k, name]) => { const c = PLACE_CLASS[k]; if (c) addLabel(y / 1e5, x / 1e5, c[0], c[1], esc(name)); });
     cullLabels();
   }
 
@@ -1233,9 +1208,9 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     }
   }
   function showTrails() {
-    const on = settings.map !== 'topo';
-    setLayer(trailTiles.hiking, settings.hiking && on);
-    setLayer(trailTiles.mtb, settings.mtb && on);
+    const zoomOk = map.getZoom() >= TRAIL_MIN_ZOOM && settings.map !== 'topo';
+    setLayer(trailGroups.hiking, settings.hiking && zoomOk);
+    setLayer(trailGroups.mtb, settings.mtb && zoomOk);
     updateOsmAttr();
     renderStatus();
   }
@@ -1251,145 +1226,53 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     renderStatus();
   }
 
-  // ---------- One loader for everything that comes from Overpass ----------
-  // Each kind of data is fetched in grid cells, only once per cell, and one request at a time.
-  // Answers are saved in the browser for 14 days, so areas seen before show at once, even after a reload.
-  const CACHE_MS = 14 * 864e5;
-  const cache = (() => {
-    let dbp = null;
-    const open = () => dbp || (dbp = new Promise((res) => {
-      try {
-        const rq = indexedDB.open('ihk-cache', 1);
-        rq.onupgradeneeded = () => { rq.result.createObjectStore('meta', { keyPath: 'id' }); rq.result.createObjectStore('data'); };
-        rq.onsuccess = () => res(rq.result);
-        rq.onerror = rq.onblocked = () => res(null);
-      } catch (e) { res(null); }
-    }));
-    const req = (r) => new Promise((res) => { r.onsuccess = () => res(r.result); r.onerror = () => res(null); });
-    const tx = async (mode) => {
-      const db = await open();
-      try { return db && db.transaction(['meta', 'data'], mode); } catch (e) { return null; }
-    };
-    let index = null;
-    return {
-      // what is saved (small), with expired entries removed
-      index: () => index || (index = (async () => {
-        const t = await tx('readwrite');
-        if (!t) return [];
-        const all = (await req(t.objectStore('meta').getAll())) || [], now = Date.now();
-        const keep = [];
-        all.forEach((m) => {
-          if (now - m.t <= CACHE_MS) keep.push(m);
-          else { try { t.objectStore('meta').delete(m.id); t.objectStore('data').delete(m.id); } catch (e) {} }
-        });
-        return keep;
-      })()),
-      async get(id) {
-        const t = await tx('readonly');
-        return t ? req(t.objectStore('data').get(id)) : null;
-      },
-      async put(meta, data) {
-        const t = await tx('readwrite');
-        if (!t) return;
-        try { t.objectStore('meta').put(meta); t.objectStore('data').put(data, meta.id); (await this.index()).push(meta); } catch (e) {}
-      }
-    };
-  })();
+  // ---------- Reading the built-in data ----------
+  // data/meta.json lists the squares that have data, so empty ones (sea, desert) are never asked for.
+  let meta = null, metaFailed = false, placesState = '';
+  const got = { hike: new Set(), topo: new Set() };
+  const getData = (path) => fetch('data/' + path).then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
+  getData('meta.json').then((m) => {
+    meta = m;
+    meta.have = { hike: new Set(m.hike), topo: new Set(m.topo) };
+    loadAll();
+  }).catch(() => { metaFailed = true; renderStatus(); });
 
-  const loaders = [
-    { // topo: names of towns, villages and places, for the whole country in one go (nodes only, so it is light)
-      key: 'places1', whole: true, minZoom: 0, cells: new Set(), busy: false, error: false, draw: drawTopo, wait: 80000,
-      active: () => settings.map === 'topo' && settings.places,
-      query: (b) => '[out:json][timeout:60];node["place"~"^(city|town|village|hamlet|isolated_dwelling|locality)$"]["name"](' + b + ');out body;'
-    },
-    { // topo: dirt roads, paths, streams, peaks and springs, from zoom 13
-      key: 'topo1', cell: 0.1, minZoom: TOPO_DETAIL_ZOOM, cells: new Set(), busy: false, error: false, draw: drawTopo,
-      active: () => settings.map === 'topo',
-      query: (b) => '[out:json][timeout:25];(way["highway"~"^(track|path)$"](' + b + ');'
-        + 'way["waterway"~"^(river|stream|wadi)$"](' + b + '););out geom;'
-        + 'node["natural"~"^(peak|spring)$"](' + b + ');out body;'
-    }
-  ];
-
-  async function loadSpec(sp) {
-    if (!sp.active() || map.getZoom() < sp.minZoom) return;
-    const used = sp.used || (sp.used = new Set());
-    let need = [], bbox;
-    if (sp.whole) {
-      if (sp.cells.has('all')) return;
-      need = [['all']];
-    } else {
-      const c = sp.cell, bb = map.getBounds().pad(0.2);
-      const s = Math.max(bb.getSouth(), LIMITS.getSouth()), n = Math.min(bb.getNorth(), LIMITS.getNorth());
-      const w = Math.max(bb.getWest(), LIMITS.getWest()), e = Math.min(bb.getEast(), LIMITS.getEast());
-      if (s >= n || w >= e) return;
-      for (let i = Math.floor(s / c); i <= Math.floor(n / c); i++) {
-        for (let j = Math.floor(w / c); j <= Math.floor(e / c); j++) if (!sp.cells.has(i + ':' + j)) need.push([i, j]);
+  function loadSquares(kind, draw) {
+    const c = meta.cell, bb = map.getBounds().pad(0.15);
+    for (let i = Math.floor(bb.getSouth() / c); i <= Math.floor(bb.getNorth() / c); i++) {
+      for (let j = Math.floor(bb.getWest() / c); j <= Math.floor(bb.getEast() / c); j++) {
+        const key = i + '_' + j;
+        if (!meta.have[kind].has(key) || got[kind].has(key)) continue;
+        got[kind].add(key);
+        getData(kind + '/' + key + '.json').then(draw).catch(() => got[kind].delete(key)); // tried again on the next move
       }
     }
-    if (!need.length) return;
-    // Saved answers first.
-    const want = new Set(need.map((q) => q.join(':')));
-    for (const m of await cache.index()) {
-      if (m.spec !== sp.key || used.has(m.id) || !m.cells.some((k) => want.has(k))) continue;
-      used.add(m.id);
-      const d = await cache.get(m.id);
-      if (d) { sp.draw(d); m.cells.forEach((k) => sp.cells.add(k)); }
-    }
-    need = need.filter((q) => !sp.cells.has(q.join(':')));
-    if (!need.length) { renderStatus(); return; }
-    let cells;
-    if (sp.whole) {
-      bbox = [LIMITS.getSouth(), LIMITS.getWest(), LIMITS.getNorth(), LIMITS.getEast()].join(',');
-      cells = ['all'];
-    } else {
-      const c = sp.cell;
-      const i0 = Math.min(...need.map((q) => q[0])), i1 = Math.max(...need.map((q) => q[0]));
-      const j0 = Math.min(...need.map((q) => q[1])), j1 = Math.max(...need.map((q) => q[1]));
-      bbox = [i0 * c, j0 * c, (i1 + 1) * c, (j1 + 1) * c].map((v) => v.toFixed(3)).join(',');
-      cells = [];
-      for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) cells.push(i + ':' + j);
-    }
-    sp.busy = true;
-    sp.error = false;
-    renderStatus();
-    try {
-      const data = await overpass(sp.query(bbox), sp.wait);
-      sp.draw(data);
-      cells.forEach((k) => sp.cells.add(k));
-      const id = sp.key + ':' + bbox;
-      used.add(id);
-      cache.put({ id, spec: sp.key, cells, t: Date.now() }, data);
-    } catch (err) {
-      sp.error = true;
-    }
-    sp.busy = false;
-    renderStatus();
   }
-  let loadRunning = false, loadAgain = false, loadTimer = 0;
-  async function loadAll() {
-    renderStatus();
-    if (loadRunning) { loadAgain = true; return; }
-    loadRunning = true;
-    do {
-      loadAgain = false;
-      for (const sp of loaders) await loadSpec(sp);
-    } while (loadAgain);
-    loadRunning = false;
+  let loadTimer = 0;
+  function loadAll() {
+    if (!meta) return;
+    const z = map.getZoom();
+    if (settings.map !== 'topo' && (settings.hiking || settings.mtb) && z >= TRAIL_MIN_ZOOM) loadSquares('hike', drawHike);
+    if (settings.map === 'topo') {
+      if (settings.places && !placesState) {
+        placesState = 'loading';
+        getData('places.json').then((list) => { placesState = 'done'; drawPlaces(list); }).catch(() => { placesState = ''; });
+      }
+      if (z >= TOPO_DETAIL_ZOOM) loadSquares('topo', drawTopo);
+    }
   }
 
   function renderStatus() {
     const el = $('trail-status'), z = map.getZoom();
     let txt = '';
     if (settings.map === 'topo') {
-      const st = contourStep(z), sp = loaders;
+      const st = contourStep(z);
       txt = 'קווי גובה כל ' + st + ' מ׳, וקו מודגש כל ' + st * 5 + ' מ׳.';
-      if (sp.some((x) => x.busy)) txt += ' טוען פרטים…';
-      else if (sp.some((x) => x.error)) txt += ' חלק מהפרטים לא נטענו, אנסה שוב כשתזיז את המפה.';
-      else if (z < TOPO_DETAIL_ZOOM) txt += ' התקרב כדי לראות נחלים, דרכי עפר ופסגות.';
+      if (z < TOPO_DETAIL_ZOOM) txt += ' התקרב כדי לראות נחלים, דרכי עפר ופסגות.';
     } else if (settings.hiking || settings.mtb) {
-      txt = z < TRAIL_INFO_ZOOM ? 'התקרב והקש על שביל כדי לראות את שמו ואת צבע הסימון.' : 'הקש על שביל כדי לראות את שמו ואת צבע הסימון.';
+      txt = z < TRAIL_MIN_ZOOM ? 'השבילים מופיעים כשמתקרבים למפה.' : 'הקש על שביל כדי לראות את שמו ואת צבע הסימון.';
     }
+    if (metaFailed && (settings.map === 'topo' || settings.hiking || settings.mtb)) txt += ' נתוני השבילים לא זמינים כרגע, נסה לרענן את העמוד.';
     el.textContent = txt;
     el.hidden = !txt;
   }
@@ -1397,7 +1280,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
   map.on('moveend', () => {
     cullLabels();
     clearTimeout(loadTimer);
-    loadTimer = setTimeout(loadAll, 400);
+    loadTimer = setTimeout(loadAll, 150);
   });
 
   // ---------- Coordinate readout (map centre / crosshair) ----------
@@ -1769,7 +1652,6 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     if (tab === 'measure') addMeasure(e.latlng);
     else if (tab === 'route') addRoute(e.latlng);
     else if (tab === 'azimuth') addAz(e.latlng);
-    else if (settings.map !== 'topo' && (settings.hiking || settings.mtb) && map.getZoom() >= TRAIL_INFO_ZOOM) trailInfoAt(e.latlng);
   });
 
   // ---------- Distance measuring ----------
