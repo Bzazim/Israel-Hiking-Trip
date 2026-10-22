@@ -207,11 +207,6 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
   font-family: "Rubik", "Arial Hebrew", sans-serif; color: #1F2A24; pointer-events: none;
   text-shadow: 0 0 2px #F7F4EC, 0 0 2px #F7F4EC, 0 0 3px #F7F4EC, 0 0 4px #F7F4EC;
 }
-.tl-city span { font-size: 17px; font-weight: 600; }
-.tl-town span { font-size: 15px; font-weight: 600; }
-.tl-village span { font-size: 13px; font-weight: 500; }
-.tl-hamlet span { font-size: 12px; }
-.tl-locality span { font-size: 12px; color: #5B4A36; }
 .tl-peak span, .tl-spring span { font-size: 11.5px; color: #5B3A1E; transform: translate(calc(-100% + 5px), -50%); }
 .tl-peak i, .tl-spring i { font-style: normal; margin-inline-end: 3px; }
 .tl-peak b { font-weight: 500; }
@@ -302,6 +297,8 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
   background: var(--chip-bg); font-size: 14.5px; line-height: 1.5;
 }
 .news-alert strong { display: block; color: var(--blaze-red); margin-bottom: 2px; }
+.news-alert ul { margin: 0; padding: 0; padding-inline-start: 18px; }
+.news-alert li + li { margin-top: 6px; }
 .news-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; }
 .news-foot label { display: flex; align-items: center; gap: 6px; font-size: 13.5px; color: var(--muted); }
 .news-foot .btn { flex: none; padding: 10px 22px; }
@@ -488,14 +485,19 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <!-- What's new: edit the text here and raise data-version, and everyone sees it again, also those who ticked "don't show". -->
-<dialog class="news" id="news" data-version="1" aria-labelledby="news-title">
+<dialog class="news" id="news" data-version="2" aria-labelledby="news-title">
   <h2 id="news-title">מה חדש?</h2>
   <ol>
     <li>בניית ציר הליכה</li>
     <li>מדידת מרחק</li>
     <li>בדיקת אזימוטים</li>
   </ol>
-  <p class="news-alert"><strong>הודעה חשובה</strong>כדי שהשבילים המסומנים ושבילי האופניים ייטענו, תן לתוכנה לטעון ואל תזיז את המפה, כדי שהם יוכלו להיטען באופן מלא. שים לב! הטעינה לוקחת כמה דקות, אנא חכה.</p>
+  <div class="news-alert"><strong>שים לב!</strong>
+    <ul>
+      <li>כדי שהשבילים המסומנים ושבילי האופניים ייטענו, תן לתוכנה לטעון ואל תזיז את המפה, כדי שהם יוכלו להיטען באופן מלא. הטעינה לוקחת כמה דקות, אנא חכה.</li>
+      <li>אם לא רשום "טוען שבילים", אנא רענן את העמוד.</li>
+    </ul>
+  </div>
   <div class="news-foot">
     <label><input type="checkbox" id="news-hide">לא להציג שוב עד העדכון הבא</label>
     <button type="button" class="btn primary" id="news-ok">הבנתי</button>
@@ -685,7 +687,9 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
   fitAttr();
   L.control.scale({ position: 'bottomleft', imperial: false, maxWidth: 110 }).addTo(map);
   addPane('contours', 260);
+  addPane('roadTiles', 335);
   addPane('roads', 340);
+  addPane('placeTiles', 375);
   addPane('labels', 370, true);
   addPane('mask', 380);
 
@@ -938,9 +942,17 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
     aerial: L.tileLayer(ESRI + 'World_Imagery/MapServer/tile/{z}/{y}/{x}', {
       bounds: LIMITS, maxNativeZoom: 19, maxZoom: 19, attribution: 'Imagery &copy; Esri, Maxar, Earthstar Geographics'
     }),
-    // Topographic map: shaded relief + contour lines only; names and roads are separate switchable layers.
+    // Topographic map: shaded relief + contour lines; names, roads and dirt roads are separate switchable layers.
     hillshade: L.tileLayer(ESRI + 'Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}', {
       bounds: LIMITS, maxNativeZoom: 16, maxZoom: 19, opacity: .6, className: 'hillshade-tiles', attribution: 'Hillshade &copy; Esri'
+    }),
+    // Place names and roads come as ready-made transparent tiles, so they show at once, with nothing to load first.
+    placeTiles: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png', {
+      pane: 'placeTiles', subdomains: 'abcd', bounds: LIMITS, maxNativeZoom: 18, maxZoom: 19,
+      attribution: OSM + ' &copy; <a href="https://carto.com/attributions">CARTO</a>'
+    }),
+    roadTiles: L.tileLayer(ESRI + 'Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}', {
+      pane: 'roadTiles', bounds: LIMITS, maxNativeZoom: 18, maxZoom: 19, attribution: 'Roads &copy; Esri'
     }),
     contours: new ContourLayer({
       pane: 'contours', bounds: LIMITS, minZoom: 7, maxZoom: 19,
@@ -983,6 +995,8 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
     setLayer(layers.aerial, m === 'aerial');
     setLayer(layers.hillshade, m === 'topo');
     setLayer(layers.contours, m === 'topo');
+    setLayer(layers.placeTiles, m === 'topo' && settings.places);
+    setLayer(layers.roadTiles, m === 'topo' && settings.roads);
     $('map').classList.toggle('paper', m === 'topo');
 
     document.querySelectorAll('[data-map]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.map === m)));
@@ -1097,7 +1111,7 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
     for (let k = 0; k < OVERPASS.length; k++) {
       const i = (overpassIdx + k) % OVERPASS.length;
       const ctl = new AbortController();
-      const timer = setTimeout(() => ctl.abort(), 35000);
+      const timer = setTimeout(() => ctl.abort(), 45000); // longer than the [timeout:30] the queries ask the server for
       try {
         const r = await fetch(OVERPASS[i], {
           method: 'POST', signal: ctl.signal,
@@ -1118,41 +1132,24 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
     throw lastErr;
   }
 
-  // ---------- Topographic map details from OpenStreetMap: roads, dirt roads, streams, names, peaks ----------
-  const TOPO_MAIN_ZOOM = 10, TOPO_DETAIL_ZOOM = 13;
+  // ---------- Topographic map details from OpenStreetMap: dirt roads, paths, streams, peaks ----------
+  const TOPO_DETAIL_ZOOM = 13;
   addPane('streams', 300);
   const streamRenderer = L.canvas({ pane: 'streams' });
   const roadRenderer = L.canvas({ pane: 'roads' });
-  const topoGroups = {
-    streams: L.layerGroup(), roadsMain: L.layerGroup(), roadsMinor: L.layerGroup(), tracks: L.layerGroup(),
-    placesMajor: L.layerGroup(), placesVillage: L.layerGroup(), placesMinor: L.layerGroup(), peaks: L.layerGroup()
-  };
-  const labelItems = { placesMajor: [], placesVillage: [], placesMinor: [], peaks: [] };
+  const topoGroups = { streams: L.layerGroup(), tracks: L.layerGroup(), peaks: L.layerGroup() };
+  const labelItems = { peaks: [] };
   const seenWays = new Set(), seenNodes = new Set();
   const ROAD_STYLE = {
-    motorway: { group: 'roadsMain', color: '#C0392B', weight: 4, casing: '#5A1A12' },
-    trunk: { group: 'roadsMain', color: '#C0392B', weight: 4, casing: '#5A1A12' },
-    primary: { group: 'roadsMain', color: '#E67E22', weight: 3.5, casing: '#6B3A0E' },
-    secondary: { group: 'roadsMain', color: '#F4D03F', weight: 3, casing: '#7A6512' },
-    tertiary: { group: 'roadsMinor', color: '#FFFFFF', weight: 2.5, casing: '#5C5C5C' },
-    unclassified: { group: 'roadsMinor', color: '#FFFFFF', weight: 2, casing: '#5C5C5C' },
     track: { group: 'tracks', color: '#2F2620', weight: 1.6, dash: '7 4' },
     path: { group: 'tracks', color: '#2F2620', weight: 1.1, dash: '2 4' }
-  };
-  const PLACE_CLASS = {
-    city: ['tl-city', 'placesMajor'], town: ['tl-town', 'placesMajor'], village: ['tl-village', 'placesVillage'],
-    hamlet: ['tl-hamlet', 'placesMinor'], isolated_dwelling: ['tl-hamlet', 'placesMinor'], locality: ['tl-locality', 'placesMinor']
   };
   const esc = (v) => String(v).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 
   function addPointLabel(el) {
     const t = el.tags, name = t['name:he'] || t.name;
     let cls, group, html;
-    if (t.place && PLACE_CLASS[t.place]) {
-      if (!name) return;
-      [cls, group] = PLACE_CLASS[t.place];
-      html = esc(name);
-    } else if (t.natural === 'peak') {
+    if (t.natural === 'peak') {
       const ele = parseFloat(t.ele);
       if (!name && isNaN(ele)) return;
       cls = 'tl-peak';
@@ -1228,11 +1225,6 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
   }
   function showTopo() {
     const on = settings.map === 'topo', z = map.getZoom();
-    setLayer(topoGroups.placesMajor, on && settings.places && z >= TOPO_MAIN_ZOOM);
-    setLayer(topoGroups.placesVillage, on && settings.places && z >= 12);
-    setLayer(topoGroups.placesMinor, on && settings.places && z >= TOPO_DETAIL_ZOOM);
-    setLayer(topoGroups.roadsMain, on && settings.roads && z >= TOPO_MAIN_ZOOM);
-    setLayer(topoGroups.roadsMinor, on && settings.roads && z >= TOPO_DETAIL_ZOOM);
     setLayer(topoGroups.tracks, on && settings.tracks && z >= TOPO_DETAIL_ZOOM);
     setLayer(topoGroups.streams, on && z >= TOPO_DETAIL_ZOOM);
     setLayer(topoGroups.peaks, on && z >= TOPO_DETAIL_ZOOM);
@@ -1248,18 +1240,11 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
       active: () => settings.map !== 'topo' && (settings.hiking || settings.mtb),
       query: (b) => '[out:json][timeout:30];rel["route"~"^(hiking|foot|mtb|bicycle)$"](' + b + ')->.r;.r out body;way(r.r)(' + b + ');out geom;'
     },
-    { // topo: main roads and towns, from zoom 10
-      cell: 0.25, minZoom: TOPO_MAIN_ZOOM, cells: new Set(), busy: false, error: false, draw: drawTopo,
-      active: () => settings.map === 'topo',
-      query: (b) => '[out:json][timeout:40];way["highway"~"^(motorway|trunk|primary|secondary)(_link)?$"](' + b + ');out geom;'
-        + 'node["place"~"^(city|town|village)$"](' + b + ');out body;'
-    },
-    { // topo: local roads, dirt roads, paths, streams, peaks, springs and place names, from zoom 13
+    { // topo: dirt roads, paths, streams, peaks and springs, from zoom 13
       cell: 0.1, minZoom: TOPO_DETAIL_ZOOM, cells: new Set(), busy: false, error: false, draw: drawTopo,
       active: () => settings.map === 'topo',
-      query: (b) => '[out:json][timeout:40];(way["highway"~"^(tertiary|tertiary_link|unclassified|track|path)$"](' + b + ');'
+      query: (b) => '[out:json][timeout:25];(way["highway"~"^(track|path)$"](' + b + ');'
         + 'way["waterway"~"^(river|stream|wadi)$"](' + b + '););out geom;'
-        + 'node["place"~"^(hamlet|isolated_dwelling|locality)$"](' + b + ');out body;'
         + 'node["natural"~"^(peak|spring)$"](' + b + ');out body;'
     }
   ];
