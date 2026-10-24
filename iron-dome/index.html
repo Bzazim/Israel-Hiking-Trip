@@ -174,6 +174,18 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
 .rel small { grid-column: 1 / -1; color: var(--muted); font-size: 11.5px; margin-top: -2px; }
 .legend { display: flex; gap: 10px; flex-wrap: wrap; font-size: 11.5px; color: var(--muted); margin: 10px 0 12px; }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: -1px; margin-inline-end: 4px; }
+.tabs { display: flex; gap: 6px; margin: 4px 0 12px; border-bottom: 1px solid var(--line); }
+.tab { font: inherit; font-size: 14px; padding: 8px 12px; background: none; border: 0; border-bottom: 2px solid transparent; color: var(--muted); cursor: pointer; margin-bottom: -1px; }
+.tab.sel { color: var(--green); border-bottom-color: var(--green); }
+.opt.sel { border-color: var(--green); background: #183029; box-shadow: inset 0 0 0 1px var(--green); }
+.opt:disabled { opacity: .45; cursor: not-allowed; }
+.coal { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.coal b { display: block; font-size: 14px; font-weight: 500; }
+.coal p { margin: 3px 0; font-size: 12.5px; color: #B9D2CA; line-height: 1.45; }
+.coal small { display: block; font-size: 11.5px; color: var(--muted); margin-bottom: 6px; }
+.coal button { font: inherit; font-size: 13px; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--green); background: #183029; color: var(--green); cursor: pointer; }
+.coal button:disabled { border-color: var(--line); background: transparent; color: var(--muted); cursor: default; }
+.coal.on b { color: var(--green); }
 @media (max-width: 520px) {
   #hud { gap: 4px 10px; font-size: 12px; }
   .bar { width: 40px; }
@@ -189,6 +201,7 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
   <button class="meter" id="relBtn" title="מפת יחסי חוץ"><span class="lbl">יחסי חוץ</span><span class="bar"><i id="relBar"></i></span></button>
   <span class="meter"><span class="lbl">הרתעה</span><span class="bar"><i id="detBar"></i></span></span>
   <span class="stat">כיפה <b id="reserve" class="num">0</b></span>
+  <span class="stat">קלע <b id="stunners" class="num">0</b></span>
   <span class="stat">חץ <b id="arrows" class="num">0</b></span>
   <span class="stat hide-sm">יירוטים <b id="kills" class="num">0</b></span>
   <span class="stat hide-sm">עלות <b id="cost" class="num">$0</b></span>
@@ -218,6 +231,8 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
     <div id="diplPowers"></div>
     <h3>באזור</h3>
     <div id="diplRegion"></div>
+    <h3>שיתופי פעולה נגד איום משותף</h3>
+    <div id="diplCoal"></div>
     <button class="primary" id="diplClose" style="margin-top:12px">חזרה לחמ״ל</button>
   </div>
 
@@ -230,9 +245,11 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
         <li>לחיצה על איום (או על נקודת הפגיעה הצפויה) משגרת מיירט מהסוללה הקרובה.</li>
         <li><span class="key" style="background:var(--red)"></span>טבעת אדומה: האיום ייפול בעיר. חייבים ליירט.</li>
         <li><span class="key" style="background:#7d8b87"></span>טבעת אפורה: ייפול בשטח פתוח. אפשר לחסוך מיירט.</li>
-        <li>כיפת ברזל מיירטת רקטות וכטב״מים. טילים בליסטיים <span style="color:#E879F9">(סגול)</span> רק סוללת חץ יכולה ליירט.</li>
+        <li>שלוש שכבות הגנה: <span style="color:#4FD1E8">כיפת ברזל ▲</span> לרקטות וכטב״מים, <span style="color:#FDBA74">קלע דוד ■</span> לטילים כבדים וטילי שיוט <span style="color:#FB7185">(ריבוע ורוד)</span>, <span style="color:#C4B5FD">חץ ◆</span> לטילים בליסטיים <span style="color:#E879F9">(סגול)</span>.</li>
         <li>בין הגלים: החלטת קבינט ותקיפות של חיל האוויר, אפשר בכמה מדינות בבת אחת. תקיפה במדינה ניטרלית מעלה הרתעה, אבל היא תגיב בירי.</li>
-        <li>🌐 מפת יחסי החוץ מראה איך כל מדינה רואה את ישראל. ארה״ב ואירופה שולחות מיירטים רק כשהיחסים טובים.</li>
+        <li>חיסולים ממוקדים של בכירים: מעלים הרתעה ומשבשים את הארגון, אבל קודם מביאים ירי נקמה.</li>
+        <li>ככל שאזור יורה יותר על ישראל, תקיפה שם פוגעת פחות ביחסי החוץ (לגיטימציה).</li>
+        <li>🌐 מפת יחסי החוץ: ארה״ב ואירופה שולחות מיירטים רק כשהיחסים טובים, ומדינות עם איום משותף יכולות להקים איתך שיתוף פעולה ולעזור ביירוט.</li>
         <li>אם אמון הציבור מגיע לאפס, המשחק נגמר.</li>
       </ul>
       <button class="primary" id="startBtn">התחל משמרת</button>
@@ -253,11 +270,18 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
     <div class="card wide">
       <div class="kicker" id="strikeKicker">חדר מבצעים</div>
       <h2>תקיפות של חיל האוויר</h2>
-      <p style="font-size:13px;margin-bottom:10px">בחר יעד, קבע כמה מטוסים מכל סוג לשלוח אליו, ועבור ליעד הבא. כל המשימות יוצאות יחד.</p>
-      <div class="chips" id="strikeCountries"></div>
-      <div id="planesBox" hidden>
-        <div class="sub" id="planesTitle"></div>
-        <div class="opts" id="strikePlanes"></div>
+      <div class="tabs"><button class="tab sel" id="tabAir">תקיפות אוויריות</button><button class="tab" id="tabKill">חיסולים ממוקדים</button></div>
+      <div id="airPane">
+        <p style="font-size:13px;margin-bottom:10px">בחר יעד, קבע כמה מטוסים מכל סוג לשלוח אליו, ועבור ליעד הבא. כל המשימות יוצאות יחד.</p>
+        <div class="chips" id="strikeCountries"></div>
+        <div id="planesBox" hidden>
+          <div class="sub" id="planesTitle"></div>
+          <div class="opts" id="strikePlanes"></div>
+        </div>
+      </div>
+      <div id="killPane" hidden>
+        <p style="font-size:13px;margin-bottom:10px">הקבינט מאשר חיסול אחד בכל הפסקה. חיסול מעלה הרתעה ומשבש את הארגון, אבל קודם כול מביא ירי נקמה. מחליף מתמנה אחרי 5 גלים.</p>
+        <div class="opts" id="killList"></div>
       </div>
       <div class="missions" id="strikeMissions"></div>
       <div class="outcome" id="strikeOutcome"></div>
@@ -374,17 +398,17 @@ const COUNTRIES = {
     react: { fr: -3, uk: -2, de: -2, eg: -4, jo: -5, qa: -6, tr: -6, sa: -2, ae: -1, cn: -2, ru: -2 } },
   lebanon: { name: 'לבנון', actor: 'חיזבאללה', stance: 'hostile', air: 0.12, far: false, det: 8, aim: [33.85, 35.50],
     origin() { return km(rnd(33.30, 33.42), rnd(35.22, 35.55)); },
-    kinds: [['rocket', 0.8], ['uav', 0.2]],
+    kinds: [['rocket', 0.74], ['uav', 0.18], ['heavy', 0.08]],
     targets: [['קריית שמונה', 3], ['מטולה', 1], ['נהריה', 2.5], ['צפת', 1.5], ['כרמיאל', 1.5], ['עכו', 1], ['חיפה', 1.6], ['טבריה', 1], ['קצרין', .8], ['עפולה', .5], ['נתניה', .3], ['תל אביב', .3]],
     react: { fr: -7, uk: -2, de: -2, qa: -3, tr: -3, ru: -2, cn: -1, eg: -1, jo: -1 } },
   syria: { name: 'סוריה', actor: 'מיליציות בסוריה', stance: 'hostile', air: 0.2, far: false, det: 6, aim: [33.51, 36.29], fire: 6,
     origin() { return km(rnd(32.8, 33.5), rnd(36.0, 36.4)); },
-    kinds: [['rocket', 1]],
+    kinds: [['rocket', 0.7], ['heavy', 0.3]],
     targets: [['קצרין', 3], ['טבריה', 2], ['צפת', 2], ['קריית שמונה', 1.5], ['עפולה', 1], ['חיפה', 1]],
     react: { ru: -8, tr: -2, cn: -2, us: -1, jo: -1 } },
   iraq: { name: 'עיראק', actor: 'מיליציות שיעיות', stance: 'hostile', air: 0.1, far: true, det: 6, aim: [33.3, 43.4], fire: 5,
     origin() { return km(rnd(32.5, 34.5), rnd(41, 44)); },
-    kinds: [['uav', 1]],
+    kinds: [['uav', 0.7], ['heavy', 0.3]],
     targets: [['חיפה', 1], ['תל אביב', 1], ['טבריה', 1], ['עפולה', 1], ['ירושלים', 1], ['באר שבע', .5], ['אילת', .7]],
     react: { us: -4, uk: -2, fr: -2, de: -2, sa: -1, jo: -2, tr: -2, cn: -2, ru: -2 } },
   yemen: { name: 'תימן', actor: 'החות׳ים', stance: 'hostile', air: 0.1, far: true, det: 6, aim: [15.35, 44.2], fire: 4,
@@ -394,7 +418,7 @@ const COUNTRIES = {
     react: { sa: 4, ae: 4, us: 2, uk: 1, fr: -1, de: -1, ru: -2, cn: -2, qa: -2 } },
   iran: { name: 'איראן', actor: 'משמרות המהפכה', stance: 'hostile', air: 0.35, far: true, det: 20, aim: [35.7, 51.4], fire: 8,
     origin() { return km(rnd(33.5, 38), rnd(45.5, 48.5)); },
-    kinds: [['ballistic', 1]],
+    kinds: [['ballistic', 0.85], ['heavy', 0.15]],
     targets: [['תל אביב', 3], ['חיפה', 2], ['ירושלים', 1.5], ['באר שבע', 1.5], ['דימונה', 1], ['פתח תקווה', 1], ['רחובות', 1], ['אילת', .5]],
     react: { us: -3, uk: -4, fr: -5, de: -5, ru: -8, cn: -8, qa: -6, tr: -4, sa: 2, ae: 1, bh: 1, eg: -2, jo: -2 } },
   jordan: { name: 'ירדן', actor: 'צבא ירדן', stance: 'neutral', air: 0.2, far: false, det: 12, aim: [31.95, 35.93], fire: 8,
@@ -416,18 +440,59 @@ const AIRCRAFT = {
   f16: { name: 'F-16I סופה', note: 'טווח קצר, זמין', base: 0.84, airMul: 1, long: false, punch: 0.65, count: 8, home: [32.66, 35.18] }
 };
 
+// ---------- targeted killings ----------
+// Senior figures by role. p = chance of success, det = deterrence on success.
+// after = multipliers on that front's fire for the coming waves: first the revenge, then the disarray.
+// react = reactions softened by legitimacy; host = reactions of the country where it happens (not softened).
+const LEADERS = [
+  { id: 'h_mil', org: 'gaza', title: 'ראש הזרוע הצבאית של חמאס', where: 'עזה', at: [31.42, 34.37], p: 0.45, det: 12, after: [1.5, 0.5, 0.6], react: { qa: -6, tr: -6, eg: -3, jo: -3 } },
+  { id: 'h_raf', org: 'gaza', title: 'מפקד חטיבת רפיח של חמאס', where: 'רפיח', at: [31.29, 34.25], p: 0.6, det: 5, after: [1.2, 0.7], react: { qa: -3, tr: -3 } },
+  { id: 'h_pol', org: 'gaza', title: 'ראש הלשכה המדינית של חמאס', where: 'דוחה, קטר', at: [25.29, 51.53], p: 0.55, det: 10, after: [1.3, 0.75], react: { tr: -8 }, host: { qa: -40, us: -12, eg: -8, sa: -4, ae: -4 } },
+  { id: 'hz_sg', org: 'lebanon', title: 'מזכ״ל חיזבאללה', where: 'הדאחייה, ביירות', at: [33.85, 35.50], p: 0.35, det: 18, after: [1.6, 0.4, 0.5, 0.7], react: { fr: -10, qa: -5, tr: -5, ru: -3 }, patron: 0.4 },
+  { id: 'hz_rad', org: 'lebanon', title: 'מפקד כוח רדואן', where: 'דרום לבנון', at: [33.27, 35.40], p: 0.55, det: 7, after: [1.2, 0.7, 0.8], react: { fr: -3 } },
+  { id: 'hz_msl', org: 'lebanon', title: 'מפקד מערך הטילים של חיזבאללה', where: 'בקעת הלבנון', at: [33.85, 36.00], p: 0.5, det: 8, after: [1.1, 0.5, 0.7], react: { fr: -3 } },
+  { id: 'ir_quds', org: 'iran', title: 'מפקד כוח קודס', where: 'דמשק, סוריה', at: [33.51, 36.29], p: 0.45, det: 15, after: [1], proxies: 0.75, react: { ru: -8, cn: -4, qa: -3 }, patron: 0.6 },
+  { id: 'ir_msl', org: 'iran', title: 'ראש תוכנית הטילים של משמרות המהפכה', where: 'טהרן', at: [35.70, 51.40], p: 0.3, det: 20, after: [1], react: { ru: -6, cn: -6, fr: -4, de: -4, qa: -4, tr: -4 }, patron: 1 },
+  { id: 'hu_lead', org: 'yemen', title: 'מנהיג החות׳ים', where: 'צעדה, תימן', at: [16.94, 43.76], p: 0.35, det: 12, after: [1.4, 0.4, 0.6], react: { ru: -2 }, host: { sa: 6, ae: 6 } },
+  { id: 'hu_cos', org: 'yemen', title: 'הרמטכ״ל של החות׳ים', where: 'צנעא', at: [15.35, 44.20], p: 0.5, det: 7, after: [1.2, 0.6], react: {}, host: { sa: 3, ae: 3 } },
+  { id: 'iq_mil', org: 'iraq', title: 'מפקד מיליציה פרו־איראנית', where: 'בגדד', at: [33.31, 44.36], p: 0.55, det: 6, after: [1.2, 0.5], react: {}, host: { us: -5 } }
+];
+const SUCCESSOR = 5; // waves until a killed figure is replaced
+
+// ---------- cooperation ----------
+// Countries that share a threat can work with Israel once relations are good enough.
+// intercept: they shoot down part of the fire from these fronts on its way to Israel.
+const COALITIONS = [
+  { id: 'jordan', name: 'הגנה אווירית משותפת עם ירדן', desc: 'ירדן מיירטת כטב״מים וטילי שיוט שחוצים את שמיה בדרך לישראל.',
+    need: { jo: 50 }, cost: { qa: -3, tr: -3 }, intercept: { fronts: ['iran', 'iraq', 'syria'], kinds: ['uav', 'heavy'], p: 0.45, by: 'ירדן' } },
+  { id: 'centcom', name: 'קואליציית פיקוד המרכז האמריקאי', desc: 'ספינות ומטוסים של ארה״ב, בריטניה וצרפת מיירטים טילים וכטב״מים מאיראן, עיראק ותימן.',
+    need: { us: 60, uk: 50 }, cost: { ru: -6, cn: -6 }, intercept: { fronts: ['iran', 'iraq', 'yemen'], kinds: ['ballistic', 'uav', 'heavy'], p: 0.3, by: 'כוחות ארה״ב' } },
+  { id: 'gulf', name: 'ברית מפרץ נגד החות׳ים', desc: 'סעודיה והאמירויות מיירטות טילים וכטב״מים מתימן מעל ים סוף.',
+    need: { sa: 45, ae: 55 }, cost: { qa: -5, tr: -4 }, intercept: { fronts: ['yemen'], kinds: ['ballistic', 'uav', 'heavy'], p: 0.4, by: 'סעודיה' } },
+  { id: 'egypt', name: 'שיתוף מודיעין עם מצרים', desc: 'מצרים מגבירה את המאבק בהברחות לעזה, ומלאי הרקטות של חמאס מתדלדל: 20% פחות ירי מעזה.',
+    need: { eg: 50 }, cost: { qa: -4, tr: -4 } },
+  { id: 'hellenic', name: 'ברית עם יוון וקפריסין', desc: 'שטחי אימונים ותחזוקה משותפת: אחרי כל גל חוזר לשירות מטוס אחד שאבד.',
+    need: { gr: 55, cy: 55 }, cost: { tr: -8 } }
+];
+
 // ---------- defence ----------
 const BATTERY_SITES = {
   sderot: ['עוטף עזה', 31.47, 34.70], ashdod: ['אשדוד', 31.77, 34.71], dan: ['גוש דן', 32.02, 34.93],
   haifa: ['חיפה', 32.76, 35.06], galil: ['גליל עליון', 33.09, 35.38], eilat: ['אילת', 29.63, 34.99],
-  jlm: ['ירושלים', 31.80, 35.12], bs: ['באר שבע', 31.27, 34.86], arrow: ['חץ', 31.88, 35.00]
+  jlm: ['ירושלים', 31.80, 35.12], bs: ['באר שבע', 31.27, 34.86],
+  arrow: ['חץ מרכז', 31.88, 35.00, 'arrow'], arrow2: ['חץ נגב', 30.95, 34.90, 'arrow'], arrow3: ['חץ צפון', 32.45, 35.05, 'arrow'],
+  sling: ['קלע דוד צפון', 32.68, 35.22, 'sling'], sling2: ['קלע דוד מרכז', 31.70, 34.98, 'sling'], sling3: ['קלע דוד דרום', 30.60, 34.80, 'sling']
 };
-// dome = Iron Dome (rockets, UAVs), arrow = Arrow (ballistic missiles only)
+// What each system can shoot down, and how likely a single interceptor is to kill it.
+// dome = Iron Dome, sling = David's Sling (heavy rockets, cruise missiles, some ballistic), arrow = Arrow (ballistic)
 const SYSTEMS = {
-  dome: { range: 40, mag: 8, reload: 4, v: 5, pk: 0.9, cost: 50 },
-  arrow: { range: 420, mag: 6, reload: 8, v: 22, pk: 0.9, cost: 3000 }
+  dome: { range: 40, mag: 8, reload: 4, v: 5, cost: 50, stock: 'reserve', pk: { rocket: 0.9, uav: 0.88 } },
+  sling: { range: 200, mag: 6, reload: 6, v: 10, cost: 1000, stock: 'stunners', pk: { heavy: 0.9, ballistic: 0.65, uav: 0.85 } },
+  arrow: { range: 420, mag: 6, reload: 8, v: 22, cost: 3000, stock: 'arrows', pk: { ballistic: 0.92 } }
 };
-const canEngage = (b, th) => (b.type === 'arrow') === (th.kind === 'ballistic');
+const canEngage = (b, th) => th.kind in b.pk;
+const SYS_RGB = { dome: '79, 209, 232', sling: '253, 186, 116', arrow: '196, 181, 253' };
+const KIND_NAME = { rocket: 'רקטה', uav: 'כטב״ם', heavy: 'טיל כבד/שיוט', ballistic: 'טיל בליסטי' };
 
 // ---------- helpers ----------
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -519,19 +584,19 @@ let G;
 function newGame() {
   G = {
     t: 0, wave: 0, phase: 'intro', speed: 1, paused: false,
-    trust: 100, rel: 0, det: 30, reserve: 40, arrows: 12, cost: 0, kills: 0, cityHits: 0, fired: 0, strikes: 0, lost: 0,
+    trust: 100, rel: 0, det: 30, reserve: 40, arrows: 14, stunners: 16, cost: 0, kills: 0, cityHits: 0, fired: 0, strikes: 0, lost: 0,
     threats: [], ints: [], fx: [], queue: [], waveHits: 0, shelter: 1, usedCards: [], sorties: [],
     p: Object.fromEntries(Object.entries(PARTNERS).map(([k, v]) => [k, v.start])),
     fleet: Object.fromEntries(Object.entries(AIRCRAFT).map(([k, a]) => [k, a.count])),
-    c: Object.fromEntries(Object.keys(COUNTRIES).map((k) => [k, { active: 0, sup: 1, struck: 0 }])),
-    batteries: ['sderot', 'ashdod', 'dan', 'haifa', 'galil', 'eilat', 'arrow'].map(addBattery)
+    c: Object.fromEntries(Object.keys(COUNTRIES).map((k) => [k, { active: 0, sup: 1, struck: 0, plan: [], now: 0, recent: 0 }])),
+    lead: {}, coal: {}, killPick: null, alliedKills: 0, kills2: 0,
+    batteries: ['sderot', 'ashdod', 'dan', 'haifa', 'galil', 'eilat', 'arrow', 'arrow2', 'sling', 'sling2'].map(addBattery)
   };
   syncRel();
   CITIES.forEach((c) => { c.hits = 0; c.alert = 0; });
 }
 function addBattery(id) {
-  const [name, a, b] = BATTERY_SITES[id];
-  const type = id === 'arrow' ? 'arrow' : 'dome';
+  const [name, a, b, type = 'dome'] = BATTERY_SITES[id];
   return { id, type, name, ...km(a, b), ...SYSTEMS[type], ammo: SYSTEMS[type].mag, reloadT: 0, flash: 0 };
 }
 // between waves: will this country fire in the coming wave? (Lebanon joins from wave 2, i.e. always by the first break)
@@ -549,6 +614,10 @@ function relShift(changes, scale = 1) {
   syncRel();
 }
 const relAll = (v) => relShift(Object.fromEntries(Object.keys(PARTNERS).map((k) => [k, v])));
+// Legitimacy: the more a front has fired at Israel lately (and the more it hit), the more the world
+// accepts Israel striking back there. At full legitimacy a strike costs nothing in foreign relations.
+const legit = (id) => clamp(G.c[id].recent / 30, 0, 1);
+const softened = (react, l) => Object.fromEntries(Object.entries(react).map(([k, v]) => [k, v < 0 ? v * (1 - l) : v]));
 
 // ---------- waves ----------
 function startWave() {
@@ -568,7 +637,9 @@ function startWave() {
   const dur = 38 + 6 * n;
   const salvos = [];
   for (const id of Object.keys(count)) {
-    let left = Math.round(count[id] * G.c[id].sup);
+    const planMult = G.c[id].plan.length ? G.c[id].plan[0] : 1;
+    const coalMult = id === 'gaza' && G.coal.egypt ? 0.8 : 1;
+    let left = Math.round(count[id] * G.c[id].sup * planMult * coalMult);
     while (left > 0) {
       const size = Math.min(left, 1 + Math.floor(Math.random() * Math.min(2 + n, 7)));
       salvos.push({ t: rnd(2, dur), size, front: id });
@@ -580,16 +651,17 @@ function startWave() {
     for (let i = 0; i < s.size; i++) {
       let kind = pick(COUNTRIES[s.front].kinds);
       if (s.front === 'lebanon' && n < 3) kind = 'rocket';
+      if (s.front === 'syria' && n < 3 && kind === 'heavy') kind = 'rocket';
       G.queue.push({ t: s.t + rnd(0, 0.9), front: s.front, kind });
     }
   }
   G.queue.sort((a, b) => a.t - b.t);
-  for (const id of Object.keys(G.c)) { G.c[id].sup = 1; if (G.c[id].active > 0 && !BASE_FRONTS.includes(id)) G.c[id].active--; }
+  for (const id of Object.keys(G.c)) { G.c[id].sup = 1; G.c[id].plan.shift(); if (G.c[id].active > 0 && !BASE_FRONTS.includes(id)) G.c[id].active--; }
   const fronts = Object.keys(count).filter((id) => count[id] >= 0.5 && (id !== 'lebanon' || n >= 2)).map((id) => COUNTRIES[id].name);
   $('waveNo').textContent = n;
   say(`גל ${n} החל · ירי מ${fronts.join(', ')}`, 'warn');
   news.forEach((m) => say(m, 'bad'));
-  if (Object.keys(count).some((id) => COUNTRIES[id].kinds.some((k) => k[0] === 'ballistic'))) say('טילים בליסטיים בדרך: רק סוללת חץ יכולה ליירט. לחץ ״המזרח התיכון״ כדי לראות אותם', 'warn');
+  if (Object.keys(count).some((id) => COUNTRIES[id].kinds.some((k) => k[0] === 'ballistic'))) say('טילים בליסטיים בדרך: חץ וקלע דוד מיירטים אותם. לחץ ״המזרח התיכון״ כדי לראות אותם', 'warn');
 }
 
 let nextId = 1;
@@ -598,12 +670,18 @@ function spawn(q) {
   const from = F.origin();
   const aim = city(pick(F.targets));
   const d0 = dist(from, aim);
-  const spread = q.kind === 'uav' ? 0.6 : q.kind === 'ballistic' ? 1.6 : 0.9 + 0.035 * d0;
+  const spread = q.kind === 'uav' || q.kind === 'heavy' ? 0.6 : q.kind === 'ballistic' ? 1.6 : 0.9 + 0.035 * d0;
   const to = { x: aim.x + gauss() * spread, y: aim.y + gauss() * spread };
   const d = dist(from, to);
-  const T = q.kind === 'uav' ? clamp(d / 0.45, 12, 80) : q.kind === 'ballistic' ? 20 + d / 50 : 6 + d / 5;
+  const T = q.kind === 'uav' ? clamp(d / 0.45, 12, 80) : q.kind === 'ballistic' ? 20 + d / 50 : q.kind === 'heavy' ? clamp(10 + d / 7, 12, 70) : 6 + d / 5;
   const hitCity = CITIES.find((c) => dist(c, to) <= c.r) || null;
   const th = { id: nextId++, kind: q.kind, front: q.front, from, to, t0: G.t, T, city: hitCity, locks: 0, trail: [], dead: false };
+  G.c[q.front].now++;
+  // partners that share the threat may shoot it down on the way
+  for (const co of COALITIONS) {
+    const ic = co.intercept;
+    if (G.coal[co.id] && ic && ic.fronts.includes(q.front) && ic.kinds.includes(q.kind) && Math.random() < ic.p) { th.allied = { at: rnd(0.3, 0.65), by: ic.by }; break; }
+  }
   G.threats.push(th);
   if (hitCity) { hitCity.alert++; announce(hitCity.name); }
   if (q.kind !== 'ballistic' && dist(from, { x: 0, y: 0 }) < 250) SFX.enemyLaunch();
@@ -636,15 +714,16 @@ function engage(th) {
     if (!best || sol.t < best.sol.t) best = { b, sol };
   }
   if (!best) {
-    const why = !any ? (th.kind === 'ballistic' ? 'חץ לא יספיק ליירט את הטיל הזה' : 'האיום מחוץ לטווח היירוט') : th.kind === 'ballistic' ? 'אין מיירטי חץ זמינים' : 'אין מיירטים זמינים בסוללות שבטווח';
+    const sys = { ballistic: 'חץ וקלע דוד', heavy: 'קלע דוד', uav: 'כיפת ברזל או קלע דוד' }[th.kind] || 'כיפת ברזל';
+    const why = !any ? `${KIND_NAME[th.kind]}: אין סוללת ${sys} שתספיק ליירט` : `${KIND_NAME[th.kind]}: אין מיירטים זמינים בסוללות ${sys} שבטווח`;
     say(why, 'warn'); SFX.denied(); return;
   }
   const { b, sol } = best;
   b.ammo--; b.flash = 1; if (b.reloadT <= 0) b.reloadT = b.reload;
   th.locks++;
   G.fired++; G.cost += b.cost;
-  G.ints.push({ from: { x: b.x, y: b.y }, p: sol.p, t0: G.t, t1: sol.t, th, arrow: b.type === 'arrow', kill: Math.random() < b.pk, trail: [] });
-  (b.type === 'arrow' ? SFX.arrow : SFX.interceptor)();
+  G.ints.push({ from: { x: b.x, y: b.y }, p: sol.p, t0: G.t, t1: sol.t, th, kill: Math.random() < b.pk[th.kind], sys: b.type, trail: [] });
+  (b.type === 'dome' ? SFX.interceptor : SFX.arrow)();
 }
 
 // ---------- update ----------
@@ -656,7 +735,7 @@ function update(dt) {
 
   for (const b of G.batteries) {
     b.flash = Math.max(0, b.flash - dt * 2);
-    const stock = b.type === 'arrow' ? 'arrows' : 'reserve';
+    const stock = b.stock;
     if (b.ammo < b.mag && G[stock] > 0) {
       b.reloadT -= dt;
       if (b.reloadT <= 0) { b.ammo++; G[stock]--; b.reloadT = b.ammo < b.mag ? b.reload : 0; }
@@ -691,11 +770,19 @@ function update(dt) {
     const p = posOf(th, G.t);
     th.cur = p;
     th.trail.push({ x: p.x, y: p.y }); if (th.trail.length > 26) th.trail.shift();
+    if (th.allied && p.s >= th.allied.at) {
+      th.dead = true; G.alliedKills++;
+      if (th.city) th.city.alert--;
+      G.fx.push({ x: p.x, y: p.y, t: 0, kind: 'kill' });
+      say(`יורט בידי ${th.allied.by}`, 'good');
+      continue;
+    }
     if (p.s >= 1) {
       th.dead = true;
       if (th.city) {
+        G.c[th.front].now += 2;
         th.city.alert--; th.city.hits++; G.cityHits++; G.waveHits++;
-        const loss = th.city.w * G.shelter * (th.kind === 'ballistic' ? 1.6 : 1);
+        const loss = th.city.w * G.shelter * ({ ballistic: 1.6, heavy: 1.3 }[th.kind] || 1);
         G.trust = Math.max(0, G.trust - loss);
         G.fx.push({ x: th.to.x, y: th.to.y, t: 0, kind: 'hit' });
         say(`נפילה ב${th.city.name}`, 'bad');
@@ -723,8 +810,19 @@ function endWave() {
   const us = G.p.us >= 30 ? Math.round(G.p.us / 7) : 0;
   const eu = (G.p.uk + G.p.fr + G.p.de) / 3 >= 40 ? 3 : 0;
   G.reserve += us + eu;
-  if (G.p.us >= 50) G.arrows += 1;
+  if (G.p.us >= 50) { G.arrows += 1; G.stunners += 2; }
   G.det = Math.max(0, G.det - 3);
+  for (const c of Object.values(G.c)) { c.recent = c.recent * 0.5 + c.now; c.now = 0; }
+  // coalitions fall apart when relations with a member sink well below what it took to form them
+  for (const co of COALITIONS) {
+    if (!G.coal[co.id]) continue;
+    const broke = Object.entries(co.need).find(([k, v]) => G.p[k] < v - 10);
+    if (broke) { G.coal[co.id] = false; say(`${co.name} התפרקה: היחסים עם ${PARTNERS[broke[0]].name} הידרדרו`, 'bad'); }
+  }
+  if (G.coal.hellenic) {
+    const t = Object.keys(AIRCRAFT).find((k) => G.fleet[k] < AIRCRAFT[k].count);
+    if (t) { G.fleet[t]++; say(`${AIRCRAFT[t].name} חזר לשירות בזכות הברית עם יוון וקפריסין`, 'good'); }
+  }
   if (!G.waveHits) G.trust = Math.min(100, G.trust + 4);
   say(G.waveHits ? `גל ${G.wave} הסתיים · ${G.waveHits} נפילות בערים` : `גל ${G.wave} הסתיים ללא נפילות בערים`, G.waveHits ? 'warn' : 'good');
   say(us + eu ? `סיוע${us ? ' אמריקאי' : ''}${eu ? (us ? ' ואירופי' : ' אירופי') : ''}: +${us + eu} מיירטים למלאי` : 'בידוד מדיני: לא התקבל סיוע', us + eu ? 'good' : 'bad');
@@ -739,7 +837,7 @@ const CARDS = [
     { label: 'לקבל את התיווך', hint: 'פחות ירי מעזה בגל הבא · מצרים +15 · כולם +4 · אמון −4', fx: { gaza: 0.4, rel: 4, relTo: { eg: 15 }, trust: -4 } },
     { label: 'לדחות ולהמשיך במבצע', hint: 'יותר ירי מעזה בגל הבא · מצרים −10 · אירופה −4', fx: { gaza: 1.3, relTo: { eg: -10, fr: -4, uk: -4, de: -4 } } }] },
   { id: 'us', title: 'וושינגטון על הקו', text: 'הממשל האמריקאי מוכן להעביר משלוח מיירטים דחוף, ומבקש איפוק בגזרה הצפונית.', opts: [
-    { label: 'לבקש משלוח חירום', hint: 'מלאי +50 · מיירטי חץ +4 · ארה״ב −8', fx: { reserve: 50, arrows: 4, relTo: { us: -8 } } },
+    { label: 'לבקש משלוח חירום', hint: 'כיפה +50 · חץ +4 · קלע דוד +6 · ארה״ב −8', fx: { reserve: 50, arrows: 4, stunners: 6, relTo: { us: -8 } } },
     { label: 'לבקש ולהתחייב לאיפוק בצפון', hint: 'מלאי +35 · ארה״ב +6 · יותר ירי מלבנון', fx: { reserve: 35, relTo: { us: 6 }, lebanon: 1.4 } },
     { label: 'לא לבקש בינתיים', hint: 'ארה״ב +4', fx: { relTo: { us: 4 } } }] },
   { id: 'hezb', title: 'חיזבאללה מאיים', text: 'אמ״ן מעריך שחיזבאללה מתכונן להרחיב את הירי על הצפון בימים הקרובים.', opts: [
@@ -750,6 +848,10 @@ const CARDS = [
     { label: 'לפרוס בירושלים', hint: 'סוללה חדשה · מלאי −15', fx: { battery: 'jlm', reserve: -15 } },
     { label: 'לפרוס בבאר שבע', hint: 'סוללה חדשה · מלאי −15', fx: { battery: 'bs', reserve: -15 } },
     { label: 'להשאיר במילואים', hint: 'מלאי +10', fx: { reserve: 10 } }] },
+  { id: 'upper', title: 'מימון אמריקאי לסוללות', text: 'הקונגרס אישר מימון לסוללת הגנה נוספת. משרד הביטחון צריך לבחור איזו.', when: () => G.p.us >= 45 && G.batteries.filter((b) => b.type !== 'dome').length < 6, opts: [
+    { label: 'סוללת חץ בצפון', hint: 'סוללת חץ חדשה · חץ +4', fx: { battery: 'arrow3', arrows: 4 } },
+    { label: 'סוללת קלע דוד בדרום', hint: 'סוללת קלע דוד חדשה · קלע +8', fx: { battery: 'sling3', stunners: 8 } },
+    { label: 'רק מיירטים', hint: 'חץ +3 · קלע +6', fx: { arrows: 3, stunners: 6 } }] },
   { id: 'un', title: 'מועצת הביטחון מתכנסת', text: 'האו״ם דורש מכל הצדדים ריסון. העולם מחכה לתגובה הישראלית.', opts: [
     { label: 'להודיע על ריסון', hint: 'כולם +6 · הרתעה −5', fx: { rel: 6, det: -5 } },
     { label: 'לדחות את הדרישה', hint: 'כולם −5 · ארה״ב +2 · אמון +4', fx: { rel: -5, relTo: { us: 2 }, trust: 4 } }] },
@@ -800,10 +902,11 @@ function applyFx(fx) {
   if (fx.trust) G.trust = clamp(G.trust + fx.trust, 1, 100);
   if (fx.reserve) G.reserve = Math.max(0, G.reserve + fx.reserve);
   if (fx.arrows) G.arrows += fx.arrows;
+  if (fx.stunners) G.stunners += fx.stunners;
   if (fx.gaza) G.c.gaza.sup *= fx.gaza;
   if (fx.lebanon) G.c.lebanon.sup *= fx.lebanon;
   if (fx.shelter) G.shelter = fx.shelter;
-  if (fx.battery) { G.batteries.push(addBattery(fx.battery)); say(`סוללה נפרסה ב${BATTERY_SITES[fx.battery][0]}`, 'good'); }
+  if (fx.battery) { G.batteries.push(addBattery(fx.battery)); say(`נפרסה סוללה חדשה: ${BATTERY_SITES[fx.battery][0]}`, 'good'); }
 }
 
 // ---------- air strikes ----------
@@ -814,15 +917,24 @@ const planned = (cid) => Object.values(plan[cid] || {}).reduce((a, b) => a + b, 
 const assigned = (aid) => Object.values(plan).reduce((s, m) => s + (m[aid] || 0), 0);
 // a bigger raid on the same country draws a stronger reaction from its friends
 const outrage = (n) => Math.min(1.6, 1 + 0.15 * (n - 1));
+const leaderUp = (L) => { const st = G.lead[L.id]; return !st || st.dead == null || G.wave - st.dead >= SUCCESSOR; };
+const leaderChance = (L) => { const st = G.lead[L.id] || {}; return clamp(L.p * Math.pow(0.6, st.alert || 0) * (st.dead != null ? 1.15 : 1), 0.1, 0.9); };
+function leaderReact(L, scale = 1) {
+  const r = {}, soft = softened(L.react, legit(L.org));
+  for (const [k, v] of Object.entries(soft)) r[k] = (r[k] || 0) + v * scale;
+  for (const [k, v] of Object.entries(L.host || {})) r[k] = (r[k] || 0) + v * scale;
+  return r;
+}
 
 function showStrike() {
-  plan = {}; pickC = null;
+  plan = {}; pickC = null; G.killPick = null;
+  setTab('air');
   $('strikeKicker').textContent = `חדר מבצעים · לפני גל ${G.wave + 1}`;
   const box = $('strikeCountries'); box.innerHTML = '';
   for (const [id, c] of Object.entries(COUNTRIES)) {
     const b = document.createElement('button');
     b.className = 'chip'; b.dataset.id = id;
-    const tag = firing(id) ? '<i class="tag fire">יורה</i>' : c.stance === 'neutral' ? '<i class="tag neutral">ניטרלית</i>' : '<i class="tag">עוינת</i>';
+    const tag = legit(id) >= 0.6 ? '<i class="tag fire">יורה · לגיטימי</i>' : firing(id) ? '<i class="tag fire">יורה</i>' : c.stance === 'neutral' ? '<i class="tag neutral">ניטרלית</i>' : '<i class="tag">עוינת</i>';
     b.innerHTML = `<b></b><span></span>${tag}<em class="count" hidden></em>`;
     b.querySelector('b').textContent = c.name;
     b.querySelector('span').textContent = c.actor;
@@ -842,7 +954,8 @@ function renderStrike() {
   $('planesBox').hidden = !pickC;
   if (pickC) {
     const c = COUNTRIES[pickC];
-    $('planesTitle').textContent = `מטוסים לתקיפה ב${c.name}`;
+    const l = Math.round(legit(pickC) * 100);
+    $('planesTitle').textContent = `מטוסים לתקיפה ב${c.name} · לגיטימציה ${l}%` + (l >= 100 ? ': התקיפה לא תפגע ביחסי החוץ' : l ? `: הפגיעה ביחסי החוץ קטנה ב־${l}%` : '');
     for (const [id, a] of Object.entries(AIRCRAFT)) {
       const mine = (plan[pickC] || {})[id] || 0, free = G.fleet[id] - assigned(id);
       const why = c.far && !a.long ? 'טווח קצר מדי ליעד הזה' : !G.fleet[id] ? 'אין מטוסים זמינים' : '';
@@ -860,8 +973,10 @@ function renderStrike() {
     }
   }
   // mission list
-  const ms = $('strikeMissions'), ids = Object.keys(plan).filter((k) => planned(k));
-  ms.innerHTML = ids.length ? '' : '<span class="empty">עדיין לא נקבעו משימות.</span>';
+  renderKills();
+  const ms = $('strikeMissions'), ids = Object.keys(plan).filter((k) => planned(k)), L = LEADERS.find((x) => x.id === G.killPick);
+  ms.innerHTML = ids.length || L ? '' : '<span class="empty">עדיין לא נקבעו משימות.</span>';
+  if (L) { const d = document.createElement('div'); d.textContent = `חיסול: ${L.title} (${L.where})`; ms.appendChild(d); }
   for (const id of ids) {
     const d = document.createElement('div');
     d.textContent = `${COUNTRIES[id].name}: ` + Object.entries(plan[id]).filter(([, n]) => n).map(([a, n]) => `${AIRCRAFT[a].name.split(' ')[0]} ×${n}`).join(' · ');
@@ -869,26 +984,50 @@ function renderStrike() {
   }
   // expected outcome for the whole plan
   const out = $('strikeOutcome'), lines = [];
-  if (ids.length) {
+  if (ids.length || L) {
     const rel = {}; let det = 0;
+    if (L) {
+      det += L.det;
+      for (const [k, v] of Object.entries(leaderReact(L))) rel[k] = (rel[k] || 0) + v;
+      lines.push(['warn', `⚠ אחרי חיסול: ירי נקמה מוגבר מ${COUNTRIES[L.org].name} בגל הבא, ואחריו ירידה בירי למשך ${L.after.length - 1 || 1} גלים`]);
+      if (L.patron) lines.push(['warn', '⚠ איראן עלולה להגיב בטילים בליסטיים']);
+    }
     for (const id of ids) {
       const c = COUNTRIES[id];
       det += c.det;
-      for (const [k, v] of Object.entries(c.react)) rel[k] = (rel[k] || 0) + v * outrage(planned(id));
+      for (const [k, v] of Object.entries(softened(c.react, legit(id)))) rel[k] = (rel[k] || 0) + v * outrage(planned(id));
       if (c.stance === 'neutral') lines.push(['warn', `⚠ ${c.name} תגיב בירי על ישראל בשני הגלים הבאים`]);
       else if (id === 'iran') lines.push(['warn', '⚠ איראן תגיב במטח טילים בליסטיים']);
       else if (!firing(id)) lines.push(['warn', `⚠ ייתכן ש${c.actor} יגיבו בירי`]);
     }
     const worst = Object.entries(rel).map(([k, v]) => [k, Math.round(v)]).filter(([, v]) => v).sort((a, b) => a[1] - b[1]);
-    lines.unshift(['', `בהצלחה: הרתעה עד +${det}. יכולת הירי של היעדים נפגעת לפי מספר הפגיעות.`]);
+    lines.unshift(['', `בהצלחה: הרתעה עד +${det}.` + (ids.length ? ' יכולת הירי של היעדים נפגעת לפי מספר הפגיעות.' : '')]);
     if (worst.length) lines.splice(1, 0, ['bad', 'יחסי חוץ: ' + worst.slice(0, 5).map(([k, v]) => `${PARTNERS[k].name} ${signed(v)}`).join(' · ') + (worst.length > 5 ? ' …' : '')]);
-    lines.push(['', 'מטוס שלא פוגע עלול לאבוד (אמון −4 לכל מטוס).']);
+    if (ids.length) lines.push(['', 'מטוס שלא פוגע עלול לאבוד (אמון −4 לכל מטוס).']);
   } else lines.push(['', 'בחר יעד, הוסף מטוסים, ואפשר לעבור ליעד נוסף. אפשר גם להמשיך בלי תקיפה.']);
   out.innerHTML = '';
   for (const [cls, t] of lines) { const d = document.createElement('div'); d.className = cls; d.textContent = t; out.appendChild(d); }
   const total = ids.reduce((s, id) => s + planned(id), 0);
-  $('strikeGo').disabled = !total;
-  $('strikeGo').textContent = total ? `בצע תקיפות · ${total} מטוסים ל־${ids.length} יעדים` : 'בצע תקיפות';
+  $('strikeGo').disabled = !total && !L;
+  $('strikeGo').textContent = total ? `בצע · ${total} מטוסים ל־${ids.length} יעדים${L ? ' + חיסול' : ''}` : L ? 'בצע חיסול' : 'בצע תקיפות';
+}
+function setTab(t) {
+  $('tabAir').classList.toggle('sel', t === 'air'); $('tabKill').classList.toggle('sel', t === 'kill');
+  $('airPane').hidden = t !== 'air'; $('killPane').hidden = t !== 'kill';
+}
+function renderKills() {
+  const box = $('killList'); box.innerHTML = '';
+  for (const L of LEADERS) {
+    const st = G.lead[L.id] || {}, up = leaderUp(L);
+    const name = L.title + (st.dead != null && up ? ' (המחליף)' : '');
+    const l = Math.round(legit(L.org) * 100);
+    const hint = up ? `${L.where} · סיכוי ${Math.round(leaderChance(L) * 100)}% · הרתעה +${L.det}` + (l ? ` · לגיטימציה ${l}%` : '') + (L.host && Object.values(L.host).some((v) => v < -10) ? ' · ⚠ פעולה בשטח מדינה ריבונית' : '')
+      : `חוסל · מחליף ימונה בעוד ${SUCCESSOR - (G.wave - st.dead)} גלים`;
+    const b = optButton(name, hint, () => { G.killPick = G.killPick === L.id ? null : L.id; renderStrike(); });
+    b.disabled = !up;
+    b.classList.toggle('sel', G.killPick === L.id);
+    box.appendChild(b);
+  }
 }
 function setPlanes(cid, aid, n) {
   plan[cid] = plan[cid] || {};
@@ -908,6 +1047,8 @@ function launchStrikes() {
       }
     }
   }
+  const L = LEADERS.find((x) => x.id === G.killPick);
+  if (L) { const from = km(31.21, 35.01), to = km(...L.at); G.sorties.push({ kill: true, from, to, delay: 0, dur: 1.8 + dist(from, to) / 700, t: 0 }); }
   G.phase = 'strike'; G.strikeDone = false;
   const pts = G.sorties.flatMap((s) => [s.from, s.to]);
   flyTo(fitBox(pts, 60));
@@ -949,12 +1090,37 @@ function resolveStrikes() {
       }
     }
     if (lost) { G.trust = Math.max(1, G.trust - 4 * lost); parts.push(lost === 1 ? 'מטוס אחד אבד' : `${lost} מטוסים אבדו`); }
-    relShift(c.react, outrage(n));
+    relShift(softened(c.react, legit(cid)), outrage(n));
     // who answers fire with fire
     if (c.stance === 'neutral') { st.active = Math.max(st.active, 2); parts.push('תגיב בירי בשני הגלים הבאים'); }
     else if (cid === 'iran') { st.active = Math.max(st.active, 1); parts.push('מכריזה על תגובה'); }
     else if (!firing(cid) && Math.random() < 0.5) { st.active = 1; parts.push('מגיבים בירי'); }
     lines.push(parts.join(' · '));
+  }
+  const L = LEADERS.find((x) => x.id === G.killPick);
+  if (L) {
+    sent++;
+    const st = G.lead[L.id] = G.lead[L.id] || {}, c = G.c[L.org];
+    if (Math.random() < leaderChance(L)) {
+      hitsAll++; G.kills2++;
+      st.dead = G.wave; st.alert = 0;
+      G.det = clamp(G.det + L.det, 0, 100);
+      relShift(leaderReact(L));
+      // revenge first, then disarray
+      L.after.forEach((m, i) => (c.plan[i] = (c.plan[i] ?? 1) * m));
+      if (L.after[0] > 1 && !firing(L.org)) c.active = Math.max(c.active, 1);
+      const parts = [`${L.title} חוסל ב${L.where}`, `הרתעה +${L.det}`];
+      if (L.after[0] > 1) parts.push(`צפוי ירי נקמה מ${COUNTRIES[L.org].name} בגל הבא`);
+      if (L.after.length > 1) parts.push(`אחר כך הירי משם ייחלש`);
+      if (L.proxies) { for (const id of ['lebanon', 'syria', 'iraq']) { G.c[id].plan[0] = (G.c[id].plan[0] ?? 1) * L.proxies; G.c[id].plan[1] = (G.c[id].plan[1] ?? 1) * L.proxies; } parts.push('השלוחים של איראן נחלשים לשני גלים'); }
+      if (L.patron && Math.random() < L.patron) { G.c.iran.active = Math.max(G.c.iran.active, 1); parts.push('איראן מכריזה על נקמה'); }
+      lines.push(parts.join(' · '));
+    } else {
+      st.alert = (st.alert || 0) + 1;
+      G.trust = Math.max(1, G.trust - 3);
+      relShift(leaderReact(L, 0.5));
+      lines.push(`ניסיון החיסול של ${L.title} נכשל · הוא ירד למחתרת והסיכוי בפעם הבאה קטן · אמון −3`);
+    }
   }
   lines.push(`יחסי חוץ כעת: ${G.rel}. פירוט במפת יחסי החוץ 🌐`);
   const ok = hitsAll / Math.max(1, sent);
@@ -970,7 +1136,7 @@ function gameOver() {
   const best = Math.max(+(store.get('idBest') || 0), G.wave - 1);
   store.set('idBest', best);
   $('overTitle').textContent = 'אמון הציבור קרס';
-  const rows = [['גלים שהושלמו', G.wave - 1], ['יירוטים', G.kills], ['נפילות בערים', G.cityHits], ['מיירטים ששוגרו', G.fired], ['תקיפות', G.strikes], ['מטוסים שאבדו', G.lost], ['יחסי חוץ', G.rel], ['עלות', '$' + (G.cost / 1000).toFixed(1) + 'M'], ['שיא אישי', best + ' גלים']];
+  const rows = [['גלים שהושלמו', G.wave - 1], ['יירוטים', G.kills], ['נפילות בערים', G.cityHits], ['מיירטים ששוגרו', G.fired], ['תקיפות', G.strikes], ['מטוסים שאבדו', G.lost], ['בכירים שחוסלו', G.kills2], ['יירוטים של שותפים', G.alliedKills], ['יחסי חוץ', G.rel], ['עלות', '$' + (G.cost / 1000).toFixed(1) + 'M'], ['שיא אישי', best + ' גלים']];
   $('overStats').innerHTML = rows.map(([k, v]) => `<div>${k}<b class="num">${v}</b></div>`).join('');
   $('over').hidden = false;
 }
@@ -990,7 +1156,30 @@ function renderDipl() {
     return d;
   };
   $('diplPowers').replaceChildren(...['us', 'uk', 'fr', 'de', 'ru', 'cn'].map(row));
+  renderCoalitions();
   $('diplRegion').replaceChildren(...Object.keys(PARTNERS).filter((k) => PARTNERS[k].map).sort((a, b) => G.p[b] - G.p[a]).map(row));
+}
+function renderCoalitions() {
+  const box = $('diplCoal'); box.innerHTML = '';
+  for (const co of COALITIONS) {
+    const d = document.createElement('div'); d.className = 'coal' + (G.coal[co.id] ? ' on' : '');
+    const missing = Object.entries(co.need).filter(([k, v]) => G.p[k] < v);
+    const reqs = Object.entries(co.need).map(([k, v]) => `${PARTNERS[k].name} ${v}+ (כעת ${G.p[k]})`).join(' · ');
+    const cost = Object.entries(co.cost).map(([k, v]) => `${PARTNERS[k].name} ${signed(v)}`).join(' · ');
+    d.innerHTML = '<b></b><p></p><small></small><button></button>';
+    d.querySelector('b').textContent = co.name;
+    d.querySelector('p').textContent = co.desc;
+    d.querySelector('small').textContent = G.coal[co.id] ? 'פעיל · מתפרק אם היחסים יורדים 10 נקודות מתחת לדרישה' : `דרוש: ${reqs}. מחיר: ${cost}`;
+    const btn = d.querySelector('button');
+    btn.textContent = G.coal[co.id] ? '✓ פעיל' : missing.length ? 'היחסים לא מספיקים' : 'להקים שיתוף פעולה';
+    btn.disabled = !!G.coal[co.id] || !!missing.length;
+    btn.onclick = () => {
+      G.coal[co.id] = true;
+      relShift(co.cost); relShift(Object.fromEntries(Object.keys(co.need).map((k) => [k, 5])));
+      say(`הוקם: ${co.name}`, 'good');
+    };
+    box.appendChild(d);
+  }
 }
 let pausedByPanel = false;
 function openDipl() {
@@ -1031,6 +1220,7 @@ function hud() {
   setBar($('trustBar'), G.trust); setBar($('relBar'), G.rel); setBar($('detBar'), G.det);
   $('reserve').textContent = G.reserve;
   $('arrows').textContent = G.arrows;
+  $('stunners').textContent = G.stunners;
   $('kills').textContent = G.kills;
   $('cost').textContent = '$' + (G.cost >= 1000 ? (G.cost / 1000).toFixed(1) + 'M' : G.cost + 'K');
   const names = CITIES.filter((c) => c.alert > 0).map((c) => c.name);
@@ -1191,7 +1381,7 @@ function draw(now) {
   const detail = view.s > 0.7;
   // battery coverage
   if (detail && !G.dipl) for (const b of G.batteries) {
-    if (b.type === 'arrow') continue;
+    if (b.type !== 'dome') continue;
     ctx.beginPath(); ctx.arc(sx(b.x), sy(b.y), b.range * view.s, 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(79, 209, 232, .025)'; ctx.fill();
     ctx.setLineDash([2, 5]); ctx.strokeStyle = 'rgba(79, 209, 232, .18)'; ctx.lineWidth = 1; ctx.stroke(); ctx.setLineDash([]);
@@ -1219,7 +1409,7 @@ function draw(now) {
     if (!th.cur) continue;
     const x = sx(th.cur.x), y = sy(th.cur.y), ix = sx(th.to.x), iy = sy(th.to.y);
     const col = th.city ? '#FF4D4D' : '#7D8B87';
-    const ball = th.kind === 'ballistic';
+    const ball = th.kind === 'ballistic', heavy = th.kind === 'heavy';
     ctx.setLineDash([2, 4]); ctx.strokeStyle = th.city ? 'rgba(255, 77, 77, .35)' : 'rgba(125, 139, 135, .25)'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(ix, iy); ctx.stroke(); ctx.setLineDash([]);
     ctx.beginPath(); ctx.arc(ix, iy, th.city ? 6 + 2 * pulse : 5, 0, Math.PI * 2); ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.stroke();
@@ -1229,12 +1419,14 @@ function draw(now) {
     ctx.lineWidth = 1.6;
     for (let i = 1; i < th.trail.length; i++) {
       const a = i / th.trail.length;
-      ctx.strokeStyle = ball ? `rgba(232, 121, 249, ${a * 0.8})` : th.kind === 'uav' ? `rgba(242, 179, 61, ${a * 0.6})` : `rgba(255, 150, 90, ${a * 0.8})`;
+      ctx.strokeStyle = ball ? `rgba(232, 121, 249, ${a * 0.8})` : heavy ? `rgba(251, 113, 133, ${a * 0.85})` : th.kind === 'uav' ? `rgba(242, 179, 61, ${a * 0.6})` : `rgba(255, 150, 90, ${a * 0.8})`;
       ctx.beginPath(); ctx.moveTo(sx(th.trail[i - 1].x), sy(th.trail[i - 1].y)); ctx.lineTo(sx(th.trail[i].x), sy(th.trail[i].y)); ctx.stroke();
     }
     if (ball) {
       ctx.fillStyle = '#E879F9'; ctx.beginPath(); ctx.arc(x, y, 4 + 3 * Math.sin(Math.PI * th.cur.s), 0, Math.PI * 2); ctx.fill();
       ctx.strokeStyle = 'rgba(232, 121, 249, .5)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI * 2); ctx.stroke();
+    } else if (heavy) {
+      ctx.fillStyle = '#FB7185'; ctx.fillRect(x - 4, y - 4, 8, 8);
     } else if (th.kind === 'uav') {
       ctx.fillStyle = '#F2B33D'; ctx.beginPath(); ctx.moveTo(x, y - 5); ctx.lineTo(x + 5, y); ctx.lineTo(x, y + 5); ctx.lineTo(x - 5, y); ctx.closePath(); ctx.fill();
     } else {
@@ -1250,7 +1442,7 @@ function draw(now) {
     if (!it.cur) continue;
     ctx.lineWidth = 1.4;
     for (let i = 1; i < it.trail.length; i++) {
-      ctx.strokeStyle = it.arrow ? `rgba(196, 181, 253, ${i / it.trail.length})` : `rgba(79, 209, 232, ${i / it.trail.length})`;
+      ctx.strokeStyle = `rgba(${SYS_RGB[it.sys]}, ${i / it.trail.length})`;
       ctx.beginPath(); ctx.moveTo(sx(it.trail[i - 1].x), sy(it.trail[i - 1].y)); ctx.lineTo(sx(it.trail[i].x), sy(it.trail[i].y)); ctx.stroke();
     }
     ctx.fillStyle = '#E8FBFF'; ctx.beginPath(); ctx.arc(sx(it.cur.x), sy(it.cur.y), 2, 0, Math.PI * 2); ctx.fill();
@@ -1258,19 +1450,20 @@ function draw(now) {
 
   // batteries
   if (detail && !G.dipl) for (const b of G.batteries) {
-    const x = sx(b.x), y = sy(b.y), arrow = b.type === 'arrow';
-    const on = arrow ? '#C4B5FD' : '#4FD1E8', off = arrow ? 'rgba(196, 181, 253, .2)' : 'rgba(79, 209, 232, .18)';
+    const x = sx(b.x), y = sy(b.y), dome = b.type === 'dome';
+    const on = `rgb(${SYS_RGB[b.type]})`, off = `rgba(${SYS_RGB[b.type]}, .2)`;
     ctx.fillStyle = b.flash ? `rgba(232, 251, 255, ${0.5 + b.flash / 2})` : (b.ammo ? on : '#3F5E66');
     ctx.beginPath();
-    if (arrow) { ctx.moveTo(x, y - 8); ctx.lineTo(x + 6, y); ctx.lineTo(x, y + 8); ctx.lineTo(x - 6, y); }
+    if (b.type === 'arrow') { ctx.moveTo(x, y - 8); ctx.lineTo(x + 6, y); ctx.lineTo(x, y + 8); ctx.lineTo(x - 6, y); }
+    else if (b.type === 'sling') { ctx.rect(x - 6, y - 6, 12, 12); }
     else { ctx.moveTo(x, y - 7); ctx.lineTo(x + 6.5, y + 5); ctx.lineTo(x - 6.5, y + 5); }
     ctx.closePath(); ctx.fill();
-    const w = arrow ? 5 : 3, gap = 1.5, total = b.mag * (w + gap) - gap;
+    const w = dome ? 3 : 5, gap = 1.5, total = b.mag * (w + gap) - gap;
     for (let i = 0; i < b.mag; i++) {
       ctx.fillStyle = i < b.ammo ? on : off;
       ctx.fillRect(x - total / 2 + i * (w + gap), y + 10, w, 5);
     }
-    if (arrow || view.s > 4.5) label(b.name, x, y + 27, arrow ? 'rgba(196, 181, 253, .85)' : 'rgba(79, 209, 232, .75)', 10);
+    if (!dome || view.s > 4.5) label(b.name, x, y + 27, `rgba(${SYS_RGB[b.type]}, .85)`, 10);
   }
 
   // strike sorties
@@ -1284,12 +1477,12 @@ function draw(now) {
       if (k >= 1) continue;
       const ang = Math.atan2(-(S.to.y - S.from.y), S.to.x - S.from.x);
       ctx.save(); ctx.translate(sx(px), sy(py)); ctx.rotate(ang);
-      ctx.fillStyle = '#3DDC97'; ctx.beginPath();
+      ctx.fillStyle = S.kill ? '#4FD1E8' : '#3DDC97'; ctx.beginPath();
       ctx.moveTo(10, 0); ctx.lineTo(-6, -7); ctx.lineTo(-3, 0); ctx.lineTo(-6, 7); ctx.closePath(); ctx.fill();
       ctx.restore();
     }
-    const n = new Set(G.sorties.map((s) => s.c)).size;
-    label(`${G.sorties.length} מטוסים בדרך ל־${n} יעדים`, W / 2, 28, '#3DDC97', 14, 700);
+    const planes = G.sorties.filter((s) => !s.kill), n = new Set(planes.map((s) => s.c)).size;
+    label((planes.length ? `${planes.length} מטוסים בדרך ל־${n} יעדים` : '') + (planes.length < G.sorties.length ? (planes.length ? ' · ' : '') + 'מבצע חיסול' : ''), W / 2, 28, '#3DDC97', 14, 700);
   }
 
   // effects
@@ -1328,7 +1521,7 @@ function drawOffscreen() {
     const k = Math.min((W / 2 - m) / Math.abs(dx || 1e-6), (H / 2 - m) / Math.abs(dy || 1e-6));
     const ex = cx + dx * k, ey = cy + dy * k, a = Math.atan2(dy, dx);
     ctx.save(); ctx.translate(ex, ey); ctx.rotate(a);
-    ctx.fillStyle = th.kind === 'ballistic' ? '#E879F9' : th.kind === 'uav' ? '#F2B33D' : '#FFB088';
+    ctx.fillStyle = { ballistic: '#E879F9', uav: '#F2B33D', heavy: '#FB7185' }[th.kind] || '#FFB088';
     ctx.beginPath(); ctx.moveTo(9, 0); ctx.lineTo(-5, -6); ctx.lineTo(-5, 6); ctx.closePath(); ctx.fill();
     ctx.restore();
   }
@@ -1389,6 +1582,8 @@ $('viewRegion').onclick = () => flyTo(VIEWS.region());
 $('startBtn').onclick = () => { initAudio(); $('intro').hidden = true; startWave(); };
 $('againBtn').onclick = () => { $('over').hidden = true; newGame(); flyTo(VIEWS.israel()); startWave(); };
 $('strikeGo').onclick = launchStrikes;
+$('tabAir').onclick = () => setTab('air');
+$('tabKill').onclick = () => setTab('kill');
 $('strikeSkip').onclick = () => { $('strike').hidden = true; startWave(); };
 $('resNext').onclick = () => { $('result').hidden = true; G.sorties = []; flyTo(VIEWS.israel()); startWave(); };
 $('pauseBtn').onclick = () => { if (G.phase !== 'wave' || G.dipl) return; G.paused = !G.paused; $('pauseBtn').textContent = G.paused ? '▶' : '❚❚'; };
