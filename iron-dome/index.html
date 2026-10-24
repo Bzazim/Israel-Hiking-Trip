@@ -71,6 +71,12 @@ button.meter .lbl { text-decoration: underline dotted; text-underline-offset: 3p
 #stage { position: relative; flex: 1; min-height: 0; }
 canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
 
+#placeBar {
+  position: absolute; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); z-index: 3; width: max-content; max-width: calc(100% - 32px); box-sizing: border-box;
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px 8px 14px; border-radius: 12px;
+  background: rgba(15, 28, 25, .95); border: 1px solid #86EFAC; color: var(--ink); font-size: 13px;
+}
+#placeBar .btn { border-color: #86EFAC; color: #86EFAC; flex: none; }
 #views { position: absolute; top: 10px; left: 12px; display: flex; flex-direction: column; gap: 6px; z-index: 2; }
 #views .btn { font-size: 12.5px; background: rgba(20, 37, 32, .9); }
 
@@ -229,6 +235,7 @@ button.rel:hover, button.rel.open { background: #183029; }
 <div id="alerts"></div>
 <div id="stage">
   <canvas id="map"></canvas>
+  <div id="placeBar" hidden><span id="placeText"></span><button class="btn" id="placeDone">סיום</button></div>
   <div id="views">
     <button class="btn" id="viewIsrael">ישראל</button>
     <button class="btn" id="viewRegion">המזרח התיכון</button>
@@ -545,9 +552,6 @@ const BATTERY_SITES = {
   jlm: ['ירושלים', 31.80, 35.12], bs: ['באר שבע', 31.27, 34.86], ks: ['קריית שמונה', 33.17, 35.52],
   sharon: ['השרון', 32.25, 34.93], dimona: ['דימונה', 31.10, 35.09], golan: ['רמת הגולן', 32.98, 35.74],
   arrow4: ['חץ ירושלים', 31.74, 35.08, 'arrow'], sling4: ['קלע דוד גליל', 32.98, 35.42, 'sling'],
-  beam1: ['קרן אור עוטף עזה', 31.51, 34.60, 'laser'], beam2: ['קרן אור גבול הצפון', 33.12, 35.47, 'laser'],
-  beam3: ['קרן אור גוש דן', 32.06, 34.80, 'laser'], beam4: ['קרן אור חיפה', 32.80, 35.04, 'laser'],
-  beam5: ['קרן אור אשקלון', 31.66, 34.60, 'laser'], beam6: ['קרן אור אילת', 29.57, 34.97, 'laser'],
   arrow: ['חץ מרכז', 31.88, 35.00, 'arrow'], arrow2: ['חץ נגב', 30.95, 34.90, 'arrow'], arrow3: ['חץ צפון', 32.45, 35.05, 'arrow'],
   sling: ['קלע דוד צפון', 32.68, 35.22, 'sling'], sling2: ['קלע דוד מרכז', 31.70, 34.98, 'sling'], sling3: ['קלע דוד דרום', 30.60, 34.80, 'sling']
 };
@@ -566,7 +570,7 @@ const SHOP = {
   dome: { name: 'כיפת ברזל', pack: 10, packCost: 1, battery: 40, what: 'רקטות וכטב״מים' },
   sling: { name: 'קלע דוד', pack: 4, packCost: 4, battery: 90, what: 'טילים כבדים, שיוט, כטב״מים וגם בליסטיים' },
   arrow: { name: 'חץ', pack: 2, packCost: 6, battery: 150, what: 'טילים בליסטיים' },
-  laser: { name: 'קרן אור (אור איתן)', battery: 220, fromWave: 5, what: 'לייזר ליירוט רקטות וכטב״מים בטווח קצר (10 ק״מ). אין צורך במיירטים: כל ירי כמעט בחינם, ירי אחד בכל פעם' }
+  laser: { name: 'קרן אור (אור איתן)', battery: 220, fromWave: 5, anywhere: true, what: 'לייזר ליירוט רקטות וכטב״מים בטווח קצר (10 ק״מ). אין צורך במיירטים: כל ירי כמעט בחינם, ירי אחד בכל פעם' }
 };
 const SYS_RGB = { dome: '79, 209, 232', sling: '253, 186, 116', arrow: '196, 181, 253', laser: '134, 239, 172' };
 const KIND_NAME = { rocket: 'רקטה', uav: 'כטב״ם', heavy: 'טיל כבד/שיוט', ballistic: 'טיל בליסטי' };
@@ -677,7 +681,18 @@ function newGame() {
 }
 function addBattery(id) {
   const [name, a, b, type = 'dome'] = BATTERY_SITES[id];
-  return { id, type, name, ...km(a, b), ...SYSTEMS[type], ammo: SYSTEMS[type].mag, reloadT: 0, flash: 0 };
+  return makeBattery(id, type, name, km(a, b));
+}
+function makeBattery(id, type, name, pos) {
+  return { id, type, name, x: pos.x, y: pos.y, ...SYSTEMS[type], ammo: SYSTEMS[type].mag, reloadT: 0, flash: 0 };
+}
+function inPoly(p, pts) {
+  let inside = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const a = pts[i], b = pts[j];
+    if ((a.y > p.y) !== (b.y > p.y) && p.x < (b.x - a.x) * (p.y - a.y) / (b.y - a.y) + a.x) inside = !inside;
+  }
+  return inside;
 }
 // between waves: will this country fire in the coming wave? (Lebanon joins from wave 2, i.e. always by the first break)
 const firing = (id) => BASE_FRONTS.includes(id) || G.c[id].active > 0;
@@ -1333,6 +1348,14 @@ function renderShop() {
     sel.hidden = !free.length;
     bat.textContent = free.length ? `לפרוס · $${it.battery}M` : 'כל האתרים תפוסים';
     bat.disabled = !free.length || G.budget < it.battery;
+    if (it.anywhere) {
+      sel.remove();
+      d.querySelector('.buy:last-child span').textContent = 'סוללה חדשה: בוחרים מיקום על המפה, כמה שרוצים';
+      bat.textContent = `מקם על המפה · $${it.battery}M`;
+      bat.disabled = G.budget < it.battery;
+      bat.onclick = () => startPlacing(type);
+      box.appendChild(d); continue;
+    }
     bat.onclick = () => { G.budget -= it.battery; G.spent += it.battery; G.batteries.push(addBattery(sel.value)); say(`נפרסה סוללה חדשה: ${BATTERY_SITES[sel.value][0]}`, 'good'); renderShop(); };
     box.appendChild(d);
   }
@@ -1364,6 +1387,37 @@ function openShop() {
   panelPause(); renderShop(); $('shop').hidden = false;
 }
 function closeShop() { $('shop').hidden = true; panelResume(); }
+
+// ---------- placing a battery anywhere on the map ----------
+function startPlacing(type) {
+  G.placing = { type }; G.hover = null;
+  $('shop').hidden = true;   // the game stays paused until placing is done
+  flyTo(VIEWS.israel());
+  placeText();
+  $('placeBar').hidden = false; $('log').hidden = true;
+}
+function placeText(extra = '') {
+  const it = SHOP[G.placing.type];
+  $('placeText').textContent = (extra ? extra + ' · ' : '') + `לחץ על המפה בתוך ישראל כדי למקם ${it.name} · $${it.battery}M · תקציב $${Math.round(G.budget)}M`;
+}
+function stopPlacing() {
+  G.placing = null; G.hover = null;
+  $('placeBar').hidden = true; $('log').hidden = false;
+  panelResume();
+}
+const insideIsrael = (w) => REGION.il.some((r) => inPoly(w, r));
+function place(px, py) {
+  const type = G.placing.type, it = SHOP[type], w = toWorld(px, py);
+  if (!insideIsrael(w)) { placeText('אפשר למקם רק בשטח ישראל'); return; }
+  if (G.budget < it.battery) { placeText('אין מספיק תקציב'); return; }
+  G.budget -= it.battery; G.spent += it.battery;
+  const near = CITIES.reduce((a, c) => (dist(c, w) < dist(a, w) ? c : a));
+  const n = G.batteries.filter((b) => b.type === type).length + 1;
+  const name = `קרן אור ${dist(near, w) < 25 ? near.name : n}`;
+  G.batteries.push(makeBattery(`${type}-${n}-${Date.now()}`, type, name, w));
+  say(`נפרסה סוללה חדשה: ${name}`, 'good');
+  placeText(`${name} מוצבת. אפשר למקם עוד אחת`);
+}
 function renderCoalitions() {
   const box = $('coopList'); box.innerHTML = '';
   for (const co of COALITIONS) {
@@ -1517,6 +1571,7 @@ cv.addEventListener('pointerdown', (e) => {
   if (pts.size === 1) gesture = { moved: false };
   else if (pts.size === 2) { const [a, b] = [...pts.values()]; gesture = { moved: true, pinch: Math.hypot(a.x - b.x, a.y - b.y) }; }
 });
+cv.addEventListener('pointermove', (e) => { if (G.placing) G.hover = toWorld(e.offsetX, e.offsetY); });
 cv.addEventListener('pointermove', (e) => {
   const p = pts.get(e.pointerId); if (!p) return;
   const dx = e.offsetX - p.x, dy = e.offsetY - p.y;
@@ -1542,6 +1597,7 @@ cv.addEventListener('pointercancel', endPointer);
 cv.addEventListener('wheel', (e) => { e.preventDefault(); zoomAt(e.offsetX, e.offsetY, Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
 
 function tap(px, py) {
+  if (G.placing) return place(px, py);
   if (G.phase !== 'wave' || G.paused) return;
   let best = null, bd = 34;
   for (const th of G.threats) {
@@ -1697,6 +1753,16 @@ function draw(now) {
     if (!dome || view.s > 4.5) label(b.name, x, y + 27, `rgba(${SYS_RGB[b.type]}, .85)`, 10);
   }
 
+  // ghost of the battery being placed
+  if (G.placing && G.hover) {
+    const t = G.placing.type, x = sx(G.hover.x), y = sy(G.hover.y), ok = insideIsrael(G.hover);
+    const rgb = ok ? SYS_RGB[t] : '255, 77, 77';
+    ctx.beginPath(); ctx.arc(x, y, SYSTEMS[t].range * view.s, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${rgb}, .12)`; ctx.fill();
+    ctx.setLineDash([4, 4]); ctx.strokeStyle = `rgba(${rgb}, .9)`; ctx.lineWidth = 1.5; ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.fillStyle = `rgb(${rgb})`; ctx.fill();
+  }
+
   // strike sorties
   if (G.phase === 'strike') {
     for (const S of G.sorties) {
@@ -1740,7 +1806,7 @@ function draw(now) {
     }
   }
 
-  if (G.paused && G.phase === 'wave' && !G.dipl && $('settings').hidden && $('coop').hidden && $('shop').hidden) {
+  if (G.paused && G.phase === 'wave' && !G.dipl && !G.placing && $('settings').hidden && $('coop').hidden && $('shop').hidden) {
     ctx.fillStyle = 'rgba(5, 10, 9, .45)'; ctx.fillRect(0, 0, W, H);
     label('מושהה', W / 2, H / 2, '#D8EDE6', 22, 700);
   }
@@ -1813,6 +1879,7 @@ $('coopBtn').onclick = () => ($('coop').hidden ? openCoop() : closeCoop());
 $('coopClose').onclick = closeCoop;
 $('shopBtn').onclick = () => ($('shop').hidden ? openShop() : closeShop());
 $('shopClose').onclick = closeShop;
+$('placeDone').onclick = stopPlacing;
 $('relBtn').onclick = $('diplBtn').onclick;
 $('diplClose').onclick = closeDipl;
 $('viewIsrael').onclick = () => flyTo(VIEWS.israel());
