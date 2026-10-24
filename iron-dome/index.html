@@ -186,7 +186,8 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
 .coal button { font: inherit; font-size: 13px; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--green); background: #183029; color: var(--green); cursor: pointer; }
 .coal button:disabled { border-color: var(--line); background: transparent; color: var(--muted); cursor: default; }
 .coal.on b { color: var(--green); }
-.buy { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.buy { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.buy span { flex-basis: 100%; font-size: 11.5px; color: var(--muted); }
 .buy button { font: inherit; font-size: 13px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--green); background: #183029; color: var(--green); cursor: pointer; }
 .buy button:disabled { border-color: var(--line); background: transparent; color: var(--muted); cursor: default; }
 .buy select { font: inherit; font-size: 13px; padding: 5px 6px; border-radius: 8px; border: 1px solid var(--line); background: #0F1C19; color: var(--ink); }
@@ -383,7 +384,8 @@ const CITIES = [
   ['נהריה', 33.01, 35.10, 2, 4], ['עכו', 32.93, 35.08, 1.8, 4], ['קריית שמונה', 33.21, 35.57, 1.8, 4],
   ['מטולה', 33.28, 35.58, 0.8, 3], ['קצרין', 32.99, 35.69, 1.2, 3], ['דימונה', 31.07, 35.03, 1.5, 4],
   ['אילת', 29.56, 34.95, 2.5, 5]
-].map(([name, a, b, r, w]) => ({ name, ...km(a, b), r, w, hits: 0, alert: 0 }));
+].map(([name, a, b, r, w]) => ({ name, ...km(a, b), r, w, damage: [], alert: 0 }));
+const REBUILD = 3; // waves until a hit site is rebuilt
 const city = (n) => CITIES.find((c) => c.name === n);
 
 // ---------- foreign relations ----------
@@ -624,7 +626,7 @@ function newGame() {
     batteries: ['sderot', 'ashdod', 'dan', 'haifa', 'galil', 'eilat', 'arrow', 'arrow2', 'sling', 'sling2'].map(addBattery)
   };
   syncRel();
-  CITIES.forEach((c) => { c.hits = 0; c.alert = 0; });
+  CITIES.forEach((c) => { c.damage = []; c.alert = 0; });
 }
 function addBattery(id) {
   const [name, a, b, type = 'dome'] = BATTERY_SITES[id];
@@ -660,11 +662,14 @@ function startWave() {
   if (n >= 6 && !G.c.iran.active && !G.c.iran.struck && Math.random() < 0.2) { G.c.iran.active = 1; news.push('מתקפת טילים מאיראן'); }
   for (const [id, code] of [['jordan', 'jo'], ['egypt', 'eg']]) if (G.p[code] < 10 && !G.c[id].active && Math.random() < 0.3) { G.c[id].active = 1; news.push(`${COUNTRIES[id].name} הצטרפה לירי אחרי קריסת היחסים`); }
 
+  // deterrence: states are only slightly restrained by it; terror organisations cut their fire sharply
   const detF = clamp(1.3 - G.det / 100, 0.6, 1.3);
-  const total = (10 + 6 * n) * detF;
+  const detT = clamp(1.45 - G.det / 65, 0.3, 1.4);
+  const deter = (id) => (COUNTRIES[id].state ? detF : detT);
+  const total = (10 + 6 * n) * detT;
   const leb = n >= 2 ? Math.min(0.5, 0.2 + 0.08 * n) : 0;
   const count = { gaza: total * (1 - leb), lebanon: total * leb };
-  for (const id of Object.keys(COUNTRIES)) if (!BASE_FRONTS.includes(id) && G.c[id].active > 0) count[id] = (COUNTRIES[id].fire + n) * detF;
+  for (const id of Object.keys(COUNTRIES)) if (!BASE_FRONTS.includes(id) && G.c[id].active > 0) count[id] = (COUNTRIES[id].fire + n) * deter(id);
   const dur = 38 + 6 * n;
   const salvos = [];
   for (const id of Object.keys(count)) {
@@ -692,6 +697,8 @@ function startWave() {
   $('waveNo').textContent = n;
   say(`גל ${n} החל · ירי מ${fronts.join(', ')}`, 'warn');
   news.forEach((m) => say(m, 'bad'));
+  if (detT <= 0.8) say(`הרתעה גבוהה: ארגוני הטרור מצמצמים ירי ב־${Math.round((1 - detT) * 100)}%`, 'good');
+  else if (detT >= 1.2) say('הרתעה נמוכה: ארגוני הטרור מגבירים את הירי', 'bad');
   if (Object.keys(count).some((id) => COUNTRIES[id].kinds.some((k) => k[0] === 'ballistic'))) say('טילים בליסטיים בדרך: חץ וקלע דוד מיירטים אותם. לחץ ״המזרח התיכון״ כדי לראות אותם', 'warn');
 }
 
@@ -812,7 +819,7 @@ function update(dt) {
       th.dead = true;
       if (th.city) {
         G.c[th.front].now += 2;
-        th.city.alert--; th.city.hits++; G.cityHits++; G.waveHits++;
+        th.city.alert--; th.city.damage.push(G.wave); G.cityHits++; G.waveHits++;
         const loss = th.city.w * G.shelter * ({ ballistic: 1.6, heavy: 1.3 }[th.kind] || 1);
         G.trust = Math.max(0, G.trust - loss);
         G.econ = Math.max(0, G.econ - th.city.w * 0.35);
@@ -857,7 +864,17 @@ function endWave() {
   }
   if (!G.waveHits) G.trust = Math.min(100, G.trust + 4);
   // the treasury: income grows with public trust and with an economy that isn't being hit
-  G.econ = clamp(G.econ + (G.waveHits ? 1 : 4), 0, 100);
+  const rebuilt = [];
+  let ruins = 0;
+  for (const c of CITIES) {
+    const before = c.damage.length;
+    c.damage = c.damage.filter((w) => G.wave - w < REBUILD);
+    if (c.damage.length < before) rebuilt.push(c.name);
+    ruins += c.damage.length;
+  }
+  if (rebuilt.length) { G.trust = Math.min(100, G.trust + rebuilt.length); say(`שיקום הושלם ב${rebuilt.join(', ')}`, 'good'); }
+  // sites still in ruins hold the economy back
+  G.econ = clamp(G.econ + (G.waveHits ? 1 : 4) + rebuilt.length * 1.5 - Math.min(3, ruins * 0.5), 0, 100);
   const income = Math.round((25 + 0.45 * G.trust) * G.econ / 100);
   G.budget += income;
   say(`הכנסות המדינה לביטחון: +$${income}M (אמון ${Math.round(G.trust)}, כלכלה ${Math.round(G.econ)})`, 'good');
@@ -1223,7 +1240,9 @@ function renderShop() {
     const stock = SYSTEMS[type].stock, d = document.createElement('div');
     d.className = 'coal';
     const free = Object.entries(BATTERY_SITES).filter(([id, v]) => (v[3] || 'dome') === type && !G.batteries.some((b) => b.id === id));
-    d.innerHTML = `<b></b><p></p><div class="buy"><button data-k="pack"></button><button data-k="bat"></button><select></select></div>`;
+    d.innerHTML = `<b></b><p></p>
+      <div class="buy"><span>מלאי מיירטים, משותף לכל הסוללות</span><button data-k="pack"></button></div>
+      <div class="buy"><span>סוללה חדשה</span><select></select><button data-k="bat"></button></div>`;
     d.querySelector('b').textContent = `${it.name} · ${G.batteries.filter((b) => b.type === type).length} סוללות · ${G[stock]} מיירטים במלאי`;
     d.querySelector('p').textContent = `מיירט ל${it.what}`;
     const pack = d.querySelector('[data-k=pack]'), bat = d.querySelector('[data-k=bat]'), sel = d.querySelector('select');
@@ -1232,7 +1251,7 @@ function renderShop() {
     pack.onclick = () => { G.budget -= it.packCost; G.spent += it.packCost; G[stock] += it.pack; renderShop(); };
     for (const [id, v] of free) { const o = document.createElement('option'); o.value = id; o.textContent = v[0]; sel.appendChild(o); }
     sel.hidden = !free.length;
-    bat.textContent = free.length ? `סוללה חדשה · $${it.battery}M` : 'כל האתרים תפוסים';
+    bat.textContent = free.length ? `לפרוס · $${it.battery}M` : 'כל האתרים תפוסים';
     bat.disabled = !free.length || G.budget < it.battery;
     bat.onclick = () => { G.budget -= it.battery; G.spent += it.battery; G.batteries.push(addBattery(sel.value)); say(`נפרסה סוללה חדשה: ${BATTERY_SITES[sel.value][0]}`, 'good'); renderShop(); };
     box.appendChild(d);
@@ -1501,9 +1520,11 @@ function draw(now) {
     ctx.lineWidth = 1; ctx.stroke();
     if (detail && !G.dipl && (c.r >= 3 || view.s > 2.6)) label(c.name, x, y - r - 4, open ? '#FF8A8A' : 'rgba(216, 237, 230, .7)', 11, open ? 700 : 400);
     if (!detail) continue;
-    for (let i = 0; i < Math.min(c.hits, 6); i++) {
+    // hit sites: red when fresh, turning amber as rebuilding progresses
+    for (let i = 0; i < Math.min(c.damage.length, 6); i++) {
       const a = i * 2.1, hx = x + Math.cos(a) * r * 0.55, hy = y + Math.sin(a) * r * 0.55;
-      ctx.strokeStyle = '#B33A3A'; ctx.lineWidth = 1.5; ctx.beginPath();
+      const age = (G.wave - c.damage[i]) / REBUILD;
+      ctx.strokeStyle = age < 0.34 ? '#B33A3A' : age < 0.67 ? '#C2702F' : '#B8A04A'; ctx.lineWidth = 1.5; ctx.beginPath();
       ctx.moveTo(hx - 2.5, hy - 2.5); ctx.lineTo(hx + 2.5, hy + 2.5); ctx.moveTo(hx + 2.5, hy - 2.5); ctx.lineTo(hx - 2.5, hy + 2.5); ctx.stroke();
     }
   }
