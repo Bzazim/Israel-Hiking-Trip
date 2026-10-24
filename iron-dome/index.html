@@ -186,6 +186,10 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
 .coal button { font: inherit; font-size: 13px; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--green); background: #183029; color: var(--green); cursor: pointer; }
 .coal button:disabled { border-color: var(--line); background: transparent; color: var(--muted); cursor: default; }
 .coal.on b { color: var(--green); }
+.buy { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.buy button { font: inherit; font-size: 13px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--green); background: #183029; color: var(--green); cursor: pointer; }
+.buy button:disabled { border-color: var(--line); background: transparent; color: var(--muted); cursor: default; }
+.buy select { font: inherit; font-size: 13px; padding: 5px 6px; border-radius: 8px; border: 1px solid var(--line); background: #0F1C19; color: var(--ink); }
 @media (max-width: 520px) {
   #hud { gap: 4px 10px; font-size: 12px; }
   .bar { width: 40px; }
@@ -200,12 +204,15 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
   <span class="meter"><span class="lbl">אמון</span><span class="bar"><i id="trustBar"></i></span></span>
   <button class="meter" id="relBtn" title="מפת יחסי חוץ"><span class="lbl">יחסי חוץ</span><span class="bar"><i id="relBar"></i></span></button>
   <span class="meter"><span class="lbl">הרתעה</span><span class="bar"><i id="detBar"></i></span></span>
+  <span class="meter"><span class="lbl">כלכלה</span><span class="bar"><i id="econBar"></i></span></span>
+  <span class="stat">תקציב <b id="budget" class="num">$0M</b></span>
   <span class="stat">כיפה <b id="reserve" class="num">0</b></span>
   <span class="stat">קלע <b id="stunners" class="num">0</b></span>
   <span class="stat">חץ <b id="arrows" class="num">0</b></span>
   <span class="stat hide-sm">יירוטים <b id="kills" class="num">0</b></span>
   <span class="stat hide-sm">עלות <b id="cost" class="num">$0</b></span>
   <span class="spacer"></span>
+  <button class="btn" id="shopBtn" title="רכש" aria-label="רכש">🛒</button>
   <button class="btn" id="coopBtn" title="שיתופי פעולה" aria-label="שיתופי פעולה">🤝</button>
   <button class="btn" id="diplBtn" title="מפת יחסי חוץ" aria-label="מפת יחסי חוץ">🌐</button>
   <button class="btn" id="speedBtn" title="מהירות">×1</button>
@@ -235,6 +242,13 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
     <button class="primary" id="diplClose" style="margin-top:12px">חזרה לחמ״ל</button>
   </div>
 
+  <div id="shop" class="side" hidden>
+    <h2>🛒 רכש</h2>
+    <div class="avg" id="shopBudget"></div>
+    <div id="shopList"></div>
+    <button class="primary" id="shopClose" style="margin-top:12px">חזרה לחמ״ל</button>
+  </div>
+
   <div id="coop" class="side" hidden>
     <h2>🤝 שיתופי פעולה</h2>
     <div class="avg">מדינות שמתמודדות עם אותו איום יכולות לעבוד איתך, כשהיחסים איתן מספיק טובים.</div>
@@ -256,6 +270,7 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
         <li>חיסולים ממוקדים של בכירים: מעלים הרתעה ומשבשים את הארגון, אבל קודם מביאים ירי נקמה.</li>
         <li>ככל שאזור יורה יותר על ישראל, תקיפה שם פוגעת פחות ביחסי החוץ (לגיטימציה).</li>
         <li>🌐 מפת יחסי החוץ: ארה״ב ואירופה שולחות מיירטים רק כשהיחסים טובים, </li>
+        <li>💰 התקציב גדל אחרי כל גל לפי אמון הציבור ומצב הכלכלה. נפילות בערים פוגעות בכלכלה. 🛒 ברכש קונים מיירטים וסוללות.</li>
         <li>🤝 שיתופי פעולה: מדינות עם איום משותף עוזרות ביירוט ובמודיעין.</li>
         <li>אם אמון הציבור מגיע לאפס, המשחק נגמר.</li>
       </ul>
@@ -487,7 +502,9 @@ const COALITIONS = [
 const BATTERY_SITES = {
   sderot: ['עוטף עזה', 31.47, 34.70], ashdod: ['אשדוד', 31.77, 34.71], dan: ['גוש דן', 32.02, 34.93],
   haifa: ['חיפה', 32.76, 35.06], galil: ['גליל עליון', 33.09, 35.38], eilat: ['אילת', 29.63, 34.99],
-  jlm: ['ירושלים', 31.80, 35.12], bs: ['באר שבע', 31.27, 34.86],
+  jlm: ['ירושלים', 31.80, 35.12], bs: ['באר שבע', 31.27, 34.86], ks: ['קריית שמונה', 33.17, 35.52],
+  sharon: ['השרון', 32.25, 34.93], dimona: ['דימונה', 31.10, 35.09], golan: ['רמת הגולן', 32.98, 35.74],
+  arrow4: ['חץ ירושלים', 31.74, 35.08, 'arrow'], sling4: ['קלע דוד גליל', 32.98, 35.42, 'sling'],
   arrow: ['חץ מרכז', 31.88, 35.00, 'arrow'], arrow2: ['חץ נגב', 30.95, 34.90, 'arrow'], arrow3: ['חץ צפון', 32.45, 35.05, 'arrow'],
   sling: ['קלע דוד צפון', 32.68, 35.22, 'sling'], sling2: ['קלע דוד מרכז', 31.70, 34.98, 'sling'], sling3: ['קלע דוד דרום', 30.60, 34.80, 'sling']
 };
@@ -499,6 +516,12 @@ const SYSTEMS = {
   arrow: { range: 420, mag: 6, reload: 8, v: 22, cost: 3000, stock: 'arrows', pk: { ballistic: 0.92 } }
 };
 const canEngage = (b, th) => th.kind in b.pk;
+// procurement prices, $M
+const SHOP = {
+  dome: { name: 'כיפת ברזל', pack: 10, packCost: 1, battery: 40, what: 'רקטות וכטב״מים' },
+  sling: { name: 'קלע דוד', pack: 4, packCost: 4, battery: 90, what: 'טילים כבדים, שיוט, כטב״מים וגם בליסטיים' },
+  arrow: { name: 'חץ', pack: 2, packCost: 6, battery: 150, what: 'טילים בליסטיים' }
+};
 const SYS_RGB = { dome: '79, 209, 232', sling: '253, 186, 116', arrow: '196, 181, 253' };
 const KIND_NAME = { rocket: 'רקטה', uav: 'כטב״ם', heavy: 'טיל כבד/שיוט', ballistic: 'טיל בליסטי' };
 
@@ -592,7 +615,7 @@ let G;
 function newGame() {
   G = {
     t: 0, wave: 0, phase: 'intro', speed: 1, paused: false,
-    trust: 100, rel: 0, det: 30, reserve: 40, arrows: 14, stunners: 16, cost: 0, kills: 0, cityHits: 0, fired: 0, strikes: 0, lost: 0,
+    trust: 100, rel: 0, det: 30, budget: 120, econ: 80, spent: 0, reserve: 40, arrows: 14, stunners: 16, cost: 0, kills: 0, cityHits: 0, fired: 0, strikes: 0, lost: 0,
     threats: [], ints: [], fx: [], queue: [], waveHits: 0, shelter: 1, usedCards: [], sorties: [],
     p: Object.fromEntries(Object.entries(PARTNERS).map(([k, v]) => [k, v.start])),
     fleet: Object.fromEntries(Object.entries(AIRCRAFT).map(([k, a]) => [k, a.count])),
@@ -792,6 +815,7 @@ function update(dt) {
         th.city.alert--; th.city.hits++; G.cityHits++; G.waveHits++;
         const loss = th.city.w * G.shelter * ({ ballistic: 1.6, heavy: 1.3 }[th.kind] || 1);
         G.trust = Math.max(0, G.trust - loss);
+        G.econ = Math.max(0, G.econ - th.city.w * 0.35);
         G.fx.push({ x: th.to.x, y: th.to.y, t: 0, kind: 'hit' });
         say(`נפילה ב${th.city.name}`, 'bad');
         SFX.impact();
@@ -832,6 +856,11 @@ function endWave() {
     if (t) { G.fleet[t]++; say(`${AIRCRAFT[t].name} חזר לשירות בזכות הברית עם יוון וקפריסין`, 'good'); }
   }
   if (!G.waveHits) G.trust = Math.min(100, G.trust + 4);
+  // the treasury: income grows with public trust and with an economy that isn't being hit
+  G.econ = clamp(G.econ + (G.waveHits ? 1 : 4), 0, 100);
+  const income = Math.round((25 + 0.45 * G.trust) * G.econ / 100);
+  G.budget += income;
+  say(`הכנסות המדינה לביטחון: +$${income}M (אמון ${Math.round(G.trust)}, כלכלה ${Math.round(G.econ)})`, 'good');
   say(G.waveHits ? `גל ${G.wave} הסתיים · ${G.waveHits} נפילות בערים` : `גל ${G.wave} הסתיים ללא נפילות בערים`, G.waveHits ? 'warn' : 'good');
   say(us + eu ? `סיוע${us ? ' אמריקאי' : ''}${eu ? (us ? ' ואירופי' : ' אירופי') : ''}: +${us + eu} מיירטים למלאי` : 'בידוד מדיני: לא התקבל סיוע', us + eu ? 'good' : 'bad');
   CITIES.forEach((c) => (c.alert = 0));
@@ -864,8 +893,15 @@ const CARDS = [
     { label: 'להודיע על ריסון', hint: 'כולם +6 · הרתעה −5', fx: { rel: 6, det: -5 } },
     { label: 'לדחות את הדרישה', hint: 'כולם −5 · ארה״ב +2 · אמון +4', fx: { rel: -5, relTo: { us: 2 }, trust: 4 } }] },
   { id: 'home', title: 'פיקוד העורף', text: 'פיקוד העורף מבקש להחמיר את ההנחיות ולסגור מוסדות לימוד ומקומות עבודה.', opts: [
-    { label: 'להחמיר הנחיות', hint: 'נפילות בערים פוגעות פחות באמון בגל הבא · אמון −3', fx: { shelter: 0.5, trust: -3 } },
-    { label: 'שגרה ככל האפשר', hint: 'אמון +3', fx: { trust: 3 } }] },
+    { label: 'להחמיר הנחיות', hint: 'נפילות בערים פוגעות פחות באמון בגל הבא · אמון −3 · כלכלה −8', fx: { shelter: 0.5, trust: -3, econ: -8 } },
+    { label: 'שגרה ככל האפשר', hint: 'אמון +3 · כלכלה +3', fx: { trust: 3, econ: 3 } }] },
+  { id: 'aid', title: 'חבילת סיוע אמריקאית', text: 'הממשל מציע סיוע כספי חירום, בתנאי שישראל תתאם איתו את המהלכים הבאים.', when: () => G.p.us >= 50, opts: [
+    { label: 'לקבל', hint: 'תקציב +$60M · ארה״ב +3 · הרתעה −4', fx: { budget: 60, relTo: { us: 3 }, det: -4 } },
+    { label: 'לסרב', hint: 'הרתעה +3', fx: { det: 3 } }] },
+  { id: 'bonds', title: 'משרד האוצר', text: 'האוצר מציע להנפיק אג״ח מלחמה כדי לממן את ההגנה, על חשבון הכלכלה בהמשך.', opts: [
+    { label: 'להנפיק אג״ח', hint: 'תקציב +$50M · כלכלה −6', fx: { budget: 50, econ: -6 } },
+    { label: 'לקצץ בתקציבים אחרים', hint: 'תקציב +$20M · אמון −3', fx: { budget: 20, trust: -3 } },
+    { label: 'בלי שינוי', hint: 'כלכלה +2', fx: { econ: 2 } }] },
   { id: 'gulf', title: 'ערוץ חשאי במפרץ', text: 'אבו דאבי מציעה לתווך מול ריאד ולהעביר מסרים לטהרן.', opts: [
     { label: 'להיענות', hint: 'האמירויות +8 · סעודיה +8 · הרתעה −3', fx: { relTo: { ae: 8, sa: 8 }, det: -3 } },
     { label: 'לסרב בנימוס', hint: 'האמירויות −4', fx: { relTo: { ae: -4 } } }] },
@@ -914,6 +950,8 @@ function applyFx(fx) {
   if (fx.gaza) G.c.gaza.sup *= fx.gaza;
   if (fx.lebanon) G.c.lebanon.sup *= fx.lebanon;
   if (fx.shelter) G.shelter = fx.shelter;
+  if (fx.econ) G.econ = clamp(G.econ + fx.econ, 0, 100);
+  if (fx.budget) G.budget += fx.budget;
   if (fx.battery) { G.batteries.push(addBattery(fx.battery)); say(`נפרסה סוללה חדשה: ${BATTERY_SITES[fx.battery][0]}`, 'good'); }
 }
 
@@ -927,6 +965,7 @@ const lossRisk = (cid, aid) => COUNTRIES[cid].state ? COUNTRIES[cid].air * 0.4 *
 const planned = (cid) => Object.values(plan[cid] || {}).reduce((a, b) => a + b, 0);
 const assigned = (aid) => Object.values(plan).reduce((s, m) => s + (m[aid] || 0), 0);
 // a bigger raid on the same country draws a stronger reaction from its friends
+const SORTIE_COST = 2, KILL_COST = 3; // $M per plane sent, per killing operation
 const outrage = (n) => Math.min(1.6, 1 + 0.15 * (n - 1));
 const leaderUp = (L) => { const st = G.lead[L.id]; return !st || st.dead == null || G.wave - st.dead >= SUCCESSOR; };
 const leaderChance = (L) => { const st = G.lead[L.id] || {}; return clamp(L.p * Math.pow(0.6, st.alert || 0) * (st.dead != null ? 1.15 : 1), 0.1, 0.9); };
@@ -1022,7 +1061,9 @@ function renderStrike() {
   out.innerHTML = '';
   for (const [cls, t] of lines) { const d = document.createElement('div'); d.className = cls; d.textContent = t; out.appendChild(d); }
   const total = ids.reduce((s, id) => s + planned(id), 0);
-  $('strikeGo').disabled = !total && !L;
+  const price = total * SORTIE_COST + (L ? KILL_COST : 0), short = price > G.budget;
+  if (price) { const d = document.createElement('div'); d.className = short ? 'bad' : ''; d.textContent = `עלות המבצע: $${price}M מתוך תקציב של $${Math.round(G.budget)}M` + (short ? ' · אין מספיק תקציב' : ''); out.appendChild(d); }
+  $('strikeGo').disabled = (!total && !L) || short;
   $('strikeGo').textContent = total ? `בצע · ${total} מטוסים ל־${ids.length} יעדים${L ? ' + חיסול' : ''}` : L ? 'בצע חיסול' : 'בצע תקיפות';
 }
 function setTab(t) {
@@ -1050,6 +1091,8 @@ function setPlanes(cid, aid, n) {
 }
 function launchStrikes() {
   $('strike').hidden = true;
+  const price = Object.keys(plan).reduce((s, id) => s + planned(id), 0) * SORTIE_COST + (G.killPick ? KILL_COST : 0);
+  G.budget -= price; G.spent += price;
   G.sorties = [];
   let i = 0;
   for (const [cid, m] of Object.entries(plan)) {
@@ -1151,7 +1194,7 @@ function gameOver() {
   const best = Math.max(+(store.get('idBest') || 0), G.wave - 1);
   store.set('idBest', best);
   $('overTitle').textContent = 'אמון הציבור קרס';
-  const rows = [['גלים שהושלמו', G.wave - 1], ['יירוטים', G.kills], ['נפילות בערים', G.cityHits], ['מיירטים ששוגרו', G.fired], ['תקיפות', G.strikes], ['מטוסים שהופלו', G.lost], ['בכירים שחוסלו', G.kills2], ['יירוטים של שותפים', G.alliedKills], ['יחסי חוץ', G.rel], ['עלות', '$' + (G.cost / 1000).toFixed(1) + 'M'], ['שיא אישי', best + ' גלים']];
+  const rows = [['גלים שהושלמו', G.wave - 1], ['יירוטים', G.kills], ['נפילות בערים', G.cityHits], ['מיירטים ששוגרו', G.fired], ['תקיפות', G.strikes], ['מטוסים שהופלו', G.lost], ['בכירים שחוסלו', G.kills2], ['יירוטים של שותפים', G.alliedKills], ['יחסי חוץ', G.rel], ['עלות המיירטים ששוגרו', '$' + (G.cost / 1000).toFixed(1) + 'M'], ['הוצאות רכש ומבצעים', '$' + Math.round(G.spent) + 'M'], ['שיא אישי', best + ' גלים']];
   $('overStats').innerHTML = rows.map(([k, v]) => `<div>${k}<b class="num">${v}</b></div>`).join('');
   $('over').hidden = false;
 }
@@ -1173,6 +1216,35 @@ function renderDipl() {
   $('diplPowers').replaceChildren(...['us', 'uk', 'fr', 'de', 'ru', 'cn'].map(row));
   $('diplRegion').replaceChildren(...Object.keys(PARTNERS).filter((k) => PARTNERS[k].map).sort((a, b) => G.p[b] - G.p[a]).map(row));
 }
+function renderShop() {
+  $('shopBudget').textContent = `תקציב: $${Math.round(G.budget)}M · כלכלה ${Math.round(G.econ)} · הוצאות עד כה $${Math.round(G.spent)}M`;
+  const box = $('shopList'); box.innerHTML = '';
+  for (const [type, it] of Object.entries(SHOP)) {
+    const stock = SYSTEMS[type].stock, d = document.createElement('div');
+    d.className = 'coal';
+    const free = Object.entries(BATTERY_SITES).filter(([id, v]) => (v[3] || 'dome') === type && !G.batteries.some((b) => b.id === id));
+    d.innerHTML = `<b></b><p></p><div class="buy"><button data-k="pack"></button><button data-k="bat"></button><select></select></div>`;
+    d.querySelector('b').textContent = `${it.name} · ${G.batteries.filter((b) => b.type === type).length} סוללות · ${G[stock]} מיירטים במלאי`;
+    d.querySelector('p').textContent = `מיירט ל${it.what}`;
+    const pack = d.querySelector('[data-k=pack]'), bat = d.querySelector('[data-k=bat]'), sel = d.querySelector('select');
+    pack.textContent = `+${it.pack} מיירטים · $${it.packCost}M`;
+    pack.disabled = G.budget < it.packCost;
+    pack.onclick = () => { G.budget -= it.packCost; G.spent += it.packCost; G[stock] += it.pack; renderShop(); };
+    for (const [id, v] of free) { const o = document.createElement('option'); o.value = id; o.textContent = v[0]; sel.appendChild(o); }
+    sel.hidden = !free.length;
+    bat.textContent = free.length ? `סוללה חדשה · $${it.battery}M` : 'כל האתרים תפוסים';
+    bat.disabled = !free.length || G.budget < it.battery;
+    bat.onclick = () => { G.budget -= it.battery; G.spent += it.battery; G.batteries.push(addBattery(sel.value)); say(`נפרסה סוללה חדשה: ${BATTERY_SITES[sel.value][0]}`, 'good'); renderShop(); };
+    box.appendChild(d);
+  }
+}
+function openShop() {
+  if (G.phase === 'intro' || G.phase === 'strike') return;
+  if (G.dipl) closeDipl();
+  if (!$('coop').hidden) closeCoop();
+  panelPause(); renderShop(); $('shop').hidden = false;
+}
+function closeShop() { $('shop').hidden = true; panelResume(); }
 function renderCoalitions() {
   const box = $('coopList'); box.innerHTML = '';
   for (const co of COALITIONS) {
@@ -1199,18 +1271,20 @@ function renderCoalitions() {
 let pausedByPanel = false;
 // the game pauses while a side panel is open
 function panelPause() {
-  if ($('dipl').hidden && $('coop').hidden) { pausedByPanel = G.phase === 'wave' && !G.paused; if (pausedByPanel) G.paused = true; }
+  if ($('dipl').hidden && $('coop').hidden && $('shop').hidden) { pausedByPanel = G.phase === 'wave' && !G.paused; if (pausedByPanel) G.paused = true; }
 }
-function panelResume() { if ($('dipl').hidden && $('coop').hidden && pausedByPanel) { G.paused = false; pausedByPanel = false; } }
+function panelResume() { if ($('dipl').hidden && $('coop').hidden && $('shop').hidden && pausedByPanel) { G.paused = false; pausedByPanel = false; } }
 function openCoop() {
   if (G.phase === 'intro' || G.phase === 'strike') return;
   if (G.dipl) closeDipl();
+  if (!$('shop').hidden) closeShop();
   panelPause(); renderCoalitions(); $('coop').hidden = false;
 }
 function closeCoop() { $('coop').hidden = true; panelResume(); }
 function openDipl() {
   if (G.phase === 'intro' || G.phase === 'strike') return;
   if (!$('coop').hidden) closeCoop();
+  if (!$('shop').hidden) closeShop();
   panelPause();
   G.dipl = true; renderDipl(); $('dipl').hidden = false;
   const t = VIEWS.region();
@@ -1245,6 +1319,8 @@ let lastAlertText = '';
 function hud() {
   setBar($('trustBar'), G.trust); setBar($('relBar'), G.rel); setBar($('detBar'), G.det);
   $('reserve').textContent = G.reserve;
+  setBar($('econBar'), G.econ);
+  $('budget').textContent = '$' + Math.round(G.budget) + 'M';
   $('arrows').textContent = G.arrows;
   $('stunners').textContent = G.stunners;
   $('kills').textContent = G.kills;
@@ -1351,7 +1427,8 @@ function tap(px, py) {
   let best = null, bd = 34;
   for (const th of G.threats) {
     if (th.dead || !th.cur) continue;
-    const d = Math.min(Math.hypot(sx(th.cur.x) - px, sy(th.cur.y) - py), Math.hypot(sx(th.to.x) - px, sy(th.to.y) - py));
+    const dCur = Math.hypot(sx(th.cur.x) - px, sy(th.cur.y) - py);
+    const d = th.locks ? dCur : Math.min(dCur, Math.hypot(sx(th.to.x) - px, sy(th.to.y) - py)); // a hidden marker can't be tapped
     const score = d + (th.locks ? 22 : 0); // prefer threats nobody is chasing yet
     if (score < bd) { bd = score; best = th; }
   }
@@ -1418,10 +1495,11 @@ function draw(now) {
   for (const c of CITIES) {
     const x = sx(c.x), y = sy(c.y), r = Math.max(detail ? 2.5 : 1.5, c.r * view.s);
     ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
-    if (c.alert > 0) { ctx.fillStyle = `rgba(255, 77, 77, ${0.18 + 0.25 * pulse})`; ctx.fill(); ctx.strokeStyle = '#FF4D4D'; }
+    const open = c.alert > 0 && G.threats.some((th) => th.city === c && !th.locks && !th.dead);
+    if (open) { ctx.fillStyle = `rgba(255, 77, 77, ${0.18 + 0.25 * pulse})`; ctx.fill(); ctx.strokeStyle = '#FF4D4D'; }
     else { ctx.fillStyle = 'rgba(216, 237, 230, .08)'; ctx.fill(); ctx.strokeStyle = 'rgba(216, 237, 230, .35)'; }
     ctx.lineWidth = 1; ctx.stroke();
-    if (detail && !G.dipl && (c.r >= 3 || view.s > 2.6)) label(c.name, x, y - r - 4, c.alert > 0 ? '#FF8A8A' : 'rgba(216, 237, 230, .7)', 11, c.alert > 0 ? 700 : 400);
+    if (detail && !G.dipl && (c.r >= 3 || view.s > 2.6)) label(c.name, x, y - r - 4, open ? '#FF8A8A' : 'rgba(216, 237, 230, .7)', 11, open ? 700 : 400);
     if (!detail) continue;
     for (let i = 0; i < Math.min(c.hits, 6); i++) {
       const a = i * 2.1, hx = x + Math.cos(a) * r * 0.55, hy = y + Math.sin(a) * r * 0.55;
@@ -1436,11 +1514,15 @@ function draw(now) {
     const x = sx(th.cur.x), y = sy(th.cur.y), ix = sx(th.to.x), iy = sy(th.to.y);
     const col = th.city ? '#FF4D4D' : '#7D8B87';
     const ball = th.kind === 'ballistic', heavy = th.kind === 'heavy';
+    // an interceptor is on its way: hide the impact marker and dim the threat, so what is still open stands out
+    ctx.globalAlpha = th.locks ? 0.35 : 1;
+    if (!th.locks) {
     ctx.setLineDash([2, 4]); ctx.strokeStyle = th.city ? 'rgba(255, 77, 77, .35)' : 'rgba(125, 139, 135, .25)'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(ix, iy); ctx.stroke(); ctx.setLineDash([]);
     ctx.beginPath(); ctx.arc(ix, iy, th.city ? 6 + 2 * pulse : 5, 0, Math.PI * 2); ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.stroke();
     const left = Math.max(0, th.t0 + th.T - G.t);
     if (th.city && detail) label(String(Math.ceil(left)), ix, iy + 18, '#FF8A8A', 10, 500);
+    }
 
     ctx.lineWidth = 1.6;
     for (let i = 1; i < th.trail.length; i++) {
@@ -1459,6 +1541,7 @@ function draw(now) {
       const h = 4 * th.cur.s * (1 - th.cur.s); // apogee in the middle of the flight
       ctx.fillStyle = '#FFD2A8'; ctx.beginPath(); ctx.arc(x, y, 2.5 + h * 1.6, 0, Math.PI * 2); ctx.fill();
     }
+    ctx.globalAlpha = 1;
     if (th.locks) { ctx.strokeStyle = '#4FD1E8'; ctx.lineWidth = 1; ctx.strokeRect(x - 8, y - 8, 16, 16); }
   }
   drawOffscreen();
@@ -1531,7 +1614,7 @@ function draw(now) {
     }
   }
 
-  if (G.paused && G.phase === 'wave' && !G.dipl && $('settings').hidden && $('coop').hidden) {
+  if (G.paused && G.phase === 'wave' && !G.dipl && $('settings').hidden && $('coop').hidden && $('shop').hidden) {
     ctx.fillStyle = 'rgba(5, 10, 9, .45)'; ctx.fillRect(0, 0, W, H);
     label('מושהה', W / 2, H / 2, '#D8EDE6', 22, 700);
   }
@@ -1602,6 +1685,8 @@ $('setMute').onclick = () => { const on = !(settings.siren || settings.voice || 
 $('diplBtn').onclick = () => (G.dipl ? closeDipl() : openDipl());
 $('coopBtn').onclick = () => ($('coop').hidden ? openCoop() : closeCoop());
 $('coopClose').onclick = closeCoop;
+$('shopBtn').onclick = () => ($('shop').hidden ? openShop() : closeShop());
+$('shopClose').onclick = closeShop;
 $('relBtn').onclick = $('diplBtn').onclick;
 $('diplClose').onclick = closeDipl;
 $('viewIsrael').onclick = () => flyTo(VIEWS.israel());
