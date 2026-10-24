@@ -954,7 +954,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
   });
 
   // ---------- Map layers ----------
-  const OSM = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+  const OSM = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>';
   const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/';
   const layers = {
     // Hiking map: topographic base without baked-in trail colours, so the trail buttons fully control them.
@@ -1060,12 +1060,12 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     orange: ['#F08C00', 'כתום'], purple: ['#8E44AD', 'סגול'], yellow: ['#E6B800', 'צהוב'], brown: ['#8B5A2B', 'חום'],
     white: ['#FFFFFF', 'לבן']
   };
-  const OSM_DATA_ATTR = 'Data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+  const OSM_DATA_ATTR = 'Data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL)';
   addPane('trailLines', 360);
   const trailRenderer = L.canvas({ pane: 'trailLines', tolerance: 8 });
   const trailGroups = { hiking: L.layerGroup(), mtb: L.layerGroup() };
   const seenTrailWays = new Set();
-  let overpassIdx = 0, osmAttrOn = false;
+  let overpassIdx = 0, osmAttrOn = false, placeShown = false;
   try { indexedDB.deleteDatabase('ihk-cache'); } catch (e) {} // store of the old loading method, no longer used
 
   // A line is [lat0, lon0, dlat1, dlon1, ...] in 1e-5 degrees.
@@ -1217,7 +1217,8 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
   }
 
   function updateOsmAttr() {
-    const want = settings.map === 'topo' || settings.hiking || settings.mtb;
+    // OSM data is on screen: trails, topo details, or a place found by the search (Nominatim)
+    const want = settings.map === 'topo' || settings.hiking || settings.mtb || placeShown;
     if (want !== osmAttrOn) {
       if (want) attribution.addAttribution(OSM_DATA_ATTR); else attribution.removeAttribution(OSM_DATA_ATTR);
       osmAttrOn = want;
@@ -1568,6 +1569,8 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
   }
   const hideResults = () => { $('search-results').hidden = true; };
   function goToPlace(r) {
+    placeShown = true; // names from Nominatim are OSM data too
+    updateOsmAttr();
     showPin(r.ll, esc(r.name) + (typeName(r.type) ? '<small>' + typeName(r.type) + '</small>' : ''), 'pin place');
     const b = r.bounds;
     if (b && r.type !== 'parking' && r.type !== 'camp_site' && b.getNorthEast().distanceTo(b.getSouthWest()) > 400) map.fitBounds(b, { maxZoom: 15, padding: [30, 30] });
@@ -1619,6 +1622,8 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     setLayer(searchPin, false);
     setLayer(searchLabel, false);
     $('search-clear').hidden = true;
+    placeShown = false;
+    updateOsmAttr();
   }
   $('search').addEventListener('submit', (e) => {
     e.preventDefault();
