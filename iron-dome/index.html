@@ -112,6 +112,31 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
 .grid2 div { background: #142520; border-radius: 8px; padding: 8px 10px; font-size: 12.5px; color: var(--muted); }
 .grid2 b { display: block; font-size: 18px; color: var(--ink); font-weight: 500; }
+.card.wide { max-width: 560px; }
+.card .sub { font-size: 12.5px; color: var(--muted); margin: 14px 0 6px; }
+.chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
+.chip {
+  font: inherit; text-align: start; color: var(--ink); background: #142520; border: 1px solid var(--line);
+  border-radius: 10px; padding: 8px 10px; cursor: pointer; display: flex; flex-direction: column; gap: 2px;
+}
+.chip b { font-size: 15px; font-weight: 500; }
+.chip span { font-size: 11.5px; color: var(--muted); }
+.chip .tag { font-style: normal; font-size: 11px; align-self: flex-start; margin-top: 3px; padding: 1px 7px; border-radius: 99px; background: #3A1D1D; color: #FF9C9C; }
+.chip .tag.neutral { background: #1D2E3A; color: #9CD2FF; }
+.chip .tag.fire { background: #5C1418; color: #FFD6D6; }
+.chip.sel, .opt.sel { border-color: var(--green); background: #183029; box-shadow: inset 0 0 0 1px var(--green); }
+.opt:disabled { opacity: .45; cursor: not-allowed; border-color: var(--line); background: #142520; }
+.outcome { margin: 14px 0; font-size: 13.5px; line-height: 1.6; color: #B9D2CA; }
+.outcome .warn { color: var(--amber); }
+.row { display: flex; gap: 8px; }
+.row .primary { flex: 1; }
+.primary:disabled { opacity: .4; cursor: not-allowed; }
+.ghost { font: inherit; font-size: 15px; padding: 12px 16px; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; }
+.toggle { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14.5px; cursor: pointer; }
+.toggle input { width: 20px; height: 20px; accent-color: var(--green); margin: 0; flex: none; }
+.toggle small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+.slider { display: flex; gap: 12px; align-items: center; padding: 14px 0 18px; font-size: 14.5px; }
+.slider input { flex: 1; accent-color: var(--green); }
 @media (max-width: 520px) {
   #hud { gap: 4px 10px; font-size: 12px; }
   .bar { width: 44px; }
@@ -122,15 +147,17 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
 <body>
 <div id="hud">
   <span class="wave">גל <span id="waveNo" class="num">1</span></span>
-  <span class="meter"><span class="lbl">אמון הציבור</span><span class="bar"><i id="trustBar"></i></span></span>
+  <span class="meter"><span class="lbl">אמון</span><span class="bar"><i id="trustBar"></i></span></span>
   <span class="meter"><span class="lbl">יחסי חוץ</span><span class="bar"><i id="relBar"></i></span></span>
-  <span class="stat">מלאי לאומי <b id="reserve" class="num">0</b></span>
+  <span class="meter"><span class="lbl">הרתעה</span><span class="bar"><i id="detBar"></i></span></span>
+  <span class="stat">כיפה <b id="reserve" class="num">0</b></span>
+  <span class="stat">חץ <b id="arrows" class="num">0</b></span>
   <span class="stat hide-sm">יירוטים <b id="kills" class="num">0</b></span>
   <span class="stat hide-sm">עלות <b id="cost" class="num">$0</b></span>
   <span class="spacer"></span>
   <button class="btn" id="speedBtn" title="מהירות">×1</button>
   <button class="btn" id="pauseBtn" title="השהיה">❚❚</button>
-  <button class="btn on" id="soundBtn" title="צליל">🔊</button>
+  <button class="btn" id="settingsBtn" title="הגדרות" aria-label="הגדרות">⚙</button>
 </div>
 <div id="alerts"></div>
 <div id="stage">
@@ -146,8 +173,9 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
         <li>לחיצה על איום (או על נקודת הפגיעה הצפויה) משגרת מיירט מהסוללה הקרובה.</li>
         <li><span class="key" style="background:var(--red)"></span>טבעת אדומה: האיום ייפול בעיר. חייבים ליירט.</li>
         <li><span class="key" style="background:#7d8b87"></span>טבעת אפורה: ייפול בשטח פתוח. אפשר לחסוך מיירט.</li>
-        <li>כל סוללה נטענת מהמלאי הלאומי, והמלאי מוגבל.</li>
-        <li>בין הגלים תתקבלנה החלטות מדיניות, ולהן יש השלכות.</li>
+        <li>כיפת ברזל מיירטת רקטות וכטב״מים. טילים בליסטיים <span style="color:#E879F9">(סגול)</span> רק סוללת חץ יכולה ליירט.</li>
+        <li>הסוללות נטענות מהמלאי הלאומי, והמלאי מוגבל.</li>
+        <li>בין הגלים: החלטת קבינט ותקיפה של חיל האוויר. תקיפה במדינה ניטרלית מעלה הרתעה, אבל היא תגיב בירי.</li>
         <li>אם אמון הציבור מגיע לאפס, המשחק נגמר.</li>
       </ul>
       <button class="primary" id="startBtn">התחל משמרת</button>
@@ -161,6 +189,47 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
       <h2 id="decTitle"></h2>
       <p id="decText"></p>
       <div class="opts" id="decOpts"></div>
+    </div>
+  </div>
+
+  <div class="overlay" id="strike" hidden>
+    <div class="card wide">
+      <div class="kicker" id="strikeKicker">חדר מבצעים</div>
+      <h2>תקיפה של חיל האוויר</h2>
+      <div class="chips" id="strikeCountries"></div>
+      <div id="planesBox" hidden>
+        <div class="sub">מטוס</div>
+        <div class="opts" id="strikePlanes"></div>
+      </div>
+      <div class="outcome" id="strikeOutcome"></div>
+      <div class="row">
+        <button class="primary" id="strikeGo" disabled>בצע תקיפה</button>
+        <button class="ghost" id="strikeSkip">בלי תקיפה</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="result" hidden>
+    <div class="card">
+      <div class="kicker">דיווח מחיל האוויר</div>
+      <h2 id="resTitle"></h2>
+      <ul id="resLines"></ul>
+      <button class="primary" id="resNext">לגל הבא</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="settings" hidden>
+    <div class="card">
+      <div class="kicker">הגדרות</div>
+      <h2>צלילים</h2>
+      <label class="toggle"><input type="checkbox" id="setSiren"><span>אזעקה עולה ויורדת בזמן התרעה</span></label>
+      <label class="toggle"><input type="checkbox" id="setVoice"><span>הקראה ״צבע אדום״ ושם העיר <small id="voiceNote"></small></span></label>
+      <label class="toggle"><input type="checkbox" id="setSfx"><span>שיגורים, יירוטים ופיצוצים</span></label>
+      <label class="slider"><span>עוצמה</span><input type="range" id="setVol" min="0" max="1" step="0.05"></label>
+      <div class="row">
+        <button class="ghost" id="setMute">השתק הכול</button>
+        <button class="primary" id="setClose">סגור</button>
+      </div>
     </div>
   </div>
 
@@ -201,33 +270,69 @@ const CITIES = [
   ['פתח תקווה', 32.09, 34.88, 2.5, 5], ['נתניה', 32.32, 34.86, 3, 5], ['עפולה', 32.61, 35.29, 2, 4],
   ['טבריה', 32.79, 35.53, 2, 4], ['צפת', 32.96, 35.50, 1.8, 4], ['כרמיאל', 32.92, 35.30, 2, 4],
   ['נהריה', 33.01, 35.10, 2, 4], ['עכו', 32.93, 35.08, 1.8, 4], ['קריית שמונה', 33.21, 35.57, 1.8, 4],
-  ['מטולה', 33.28, 35.58, 0.8, 3], ['קצרין', 32.99, 35.69, 1.2, 3]
+  ['מטולה', 33.28, 35.58, 0.8, 3], ['קצרין', 32.99, 35.69, 1.2, 3], ['דימונה', 31.07, 35.03, 1.5, 4]
 ].map(([name, a, b, r, w]) => ({ name, ...km(a, b), r, w, hits: 0, alert: 0 }));
 const city = (n) => CITIES.find((c) => c.name === n);
 
-// launch areas and how often each city is aimed at
-const FRONTS = {
-  gaza: {
+// ---------- countries ----------
+// stance: hostile ones fire anyway; neutral ones fire only after Israel strikes them.
+// air = air-defence strength (lowers strike success), far = needs long-range aircraft,
+// det = deterrence gained by a successful strike, rel = foreign-relations cost of striking.
+// base fronts (gaza, lebanon) fire every wave; the others only while `active` waves remain.
+const COUNTRIES = {
+  gaza: { name: 'עזה', actor: 'חמאס', stance: 'hostile', air: 0.05, far: false, det: 5, rel: 5, aim: [31.45, 34.42],
     origin() { const s = Math.random(); const a = km(31.53 - s * 0.24, 34.47 - s * 0.18); return { x: a.x + rnd(-1.5, 1.5), y: a.y + rnd(-1.5, 1.5) }; },
-    targets: [['שדרות', 3], ['אשקלון', 3], ['נתיבות', 2], ['אופקים', 1], ['אשדוד', 2], ['קריית גת', 1], ['באר שבע', 1.5], ['רחובות', .6], ['ראשון לציון', .6], ['תל אביב', 1], ['פתח תקווה', .4], ['ירושלים', .4]]
-  },
-  lebanon: {
+    kinds: [['rocket', 1]],
+    targets: [['שדרות', 3], ['אשקלון', 3], ['נתיבות', 2], ['אופקים', 1], ['אשדוד', 2], ['קריית גת', 1], ['באר שבע', 1.5], ['רחובות', .6], ['ראשון לציון', .6], ['תל אביב', 1], ['פתח תקווה', .4], ['ירושלים', .4]] },
+  lebanon: { name: 'לבנון', actor: 'חיזבאללה', stance: 'hostile', air: 0.12, far: false, det: 8, rel: 8, aim: [33.38, 35.42],
     origin() { return km(rnd(33.30, 33.42), rnd(35.22, 35.55)); },
-    targets: [['קריית שמונה', 3], ['מטולה', 1], ['נהריה', 2.5], ['צפת', 1.5], ['כרמיאל', 1.5], ['עכו', 1], ['חיפה', 1.6], ['טבריה', 1], ['קצרין', .8], ['עפולה', .5], ['נתניה', .3], ['תל אביב', .3]]
-  }
+    kinds: [['rocket', 0.8], ['uav', 0.2]],
+    targets: [['קריית שמונה', 3], ['מטולה', 1], ['נהריה', 2.5], ['צפת', 1.5], ['כרמיאל', 1.5], ['עכו', 1], ['חיפה', 1.6], ['טבריה', 1], ['קצרין', .8], ['עפולה', .5], ['נתניה', .3], ['תל אביב', .3]] },
+  syria: { name: 'סוריה', actor: 'מיליציות בסוריה', stance: 'hostile', air: 0.2, far: false, det: 6, rel: 6, aim: [33.25, 36.35], fire: 6,
+    origin() { return km(rnd(32.75, 33.35), rnd(36.1, 36.4)); },
+    kinds: [['rocket', 1]],
+    targets: [['קצרין', 3], ['טבריה', 2], ['צפת', 2], ['קריית שמונה', 1.5], ['עפולה', 1], ['חיפה', 1]] },
+  iraq: { name: 'עיראק', actor: 'מיליציות שיעיות', stance: 'hostile', air: 0.1, far: true, det: 6, rel: 10, aim: [32.8, 38.6], fire: 5,
+    origin() { return km(rnd(32.0, 33.0), rnd(38.3, 38.7)); },
+    kinds: [['uav', 1]],
+    targets: [['חיפה', 1], ['תל אביב', 1], ['טבריה', 1], ['עפולה', 1], ['ירושלים', 1], ['באר שבע', .5]] },
+  yemen: { name: 'תימן', actor: 'החות׳ים', stance: 'hostile', air: 0.1, far: true, det: 6, rel: 4, aim: [28.2, 36.6], fire: 4,
+    origin() { return km(rnd(27.8, 28.3), rnd(35.5, 36.5)); },
+    kinds: [['ballistic', 0.5], ['uav', 0.5]],
+    targets: [['תל אביב', 2], ['באר שבע', 1], ['אשדוד', 1], ['ירושלים', 1], ['דימונה', .5]] },
+  iran: { name: 'איראן', actor: 'משמרות המהפכה', stance: 'hostile', air: 0.35, far: true, det: 20, rel: 15, aim: [32.6, 40.2], fire: 8,
+    origin() { return km(rnd(32.0, 33.2), rnd(39.5, 40.0)); },
+    kinds: [['ballistic', 1]],
+    targets: [['תל אביב', 3], ['חיפה', 2], ['ירושלים', 1.5], ['באר שבע', 1.5], ['דימונה', 1], ['פתח תקווה', 1], ['רחובות', 1]] },
+  jordan: { name: 'ירדן', actor: 'צבא ירדן', stance: 'neutral', air: 0.2, far: false, det: 12, rel: 25, aim: [31.95, 35.93], fire: 8,
+    origin() { return km(rnd(31.6, 32.4), rnd(35.75, 35.98)); },
+    kinds: [['rocket', 1]],
+    targets: [['ירושלים', 2], ['עפולה', 1.5], ['טבריה', 1], ['באר שבע', 1], ['דימונה', 1], ['נתניה', .5]] },
+  egypt: { name: 'מצרים', actor: 'צבא מצרים', stance: 'neutral', air: 0.25, far: false, det: 15, rel: 30, aim: [30.7, 34.1], fire: 10,
+    origin() { return km(rnd(30.4, 30.9), rnd(34.0, 34.3)); },
+    kinds: [['rocket', 0.6], ['uav', 0.4]],
+    targets: [['באר שבע', 2], ['אופקים', 1.5], ['נתיבות', 1], ['דימונה', 1.5], ['אשקלון', 1]] }
+};
+const BASE_FRONTS = ['gaza', 'lebanon'];
+
+const AIRCRAFT = {
+  f35: { name: 'F-35I אדיר', note: 'חמקן, חודר הגנה אווירית', base: 0.94, airMul: 0.4, long: true, heavy: false, count: 3, home: [31.21, 35.01] },
+  f15: { name: 'F-15I רעם', note: 'טווח ארוך, חימוש כבד', base: 0.86, airMul: 1, long: true, heavy: true, count: 4, home: [31.23, 34.66] },
+  f16: { name: 'F-16I סופה', note: 'טווח קצר, זמין', base: 0.84, airMul: 1, long: false, heavy: false, count: 8, home: [32.66, 35.18] }
 };
 
+// ---------- defence ----------
 const BATTERY_SITES = {
   sderot: ['עוטף עזה', 31.47, 34.70], ashdod: ['אשדוד', 31.77, 34.71], dan: ['גוש דן', 32.02, 34.93],
   haifa: ['חיפה', 32.76, 35.06], galil: ['גליל עליון', 33.09, 35.38],
-  jlm: ['ירושלים', 31.80, 35.12], bs: ['באר שבע', 31.27, 34.86]
+  jlm: ['ירושלים', 31.80, 35.12], bs: ['באר שבע', 31.27, 34.86], arrow: ['חץ', 31.88, 35.00]
 };
-const RANGE = 40;        // km
-const MAG = 8;           // interceptors per launcher
-const RELOAD = 4;        // seconds per interceptor
-const V_INT = 5;         // interceptor speed, km/s of game time
-const P_KILL = 0.9;
-const TAMIR_COST = 50;   // $K
+// dome = Iron Dome (rockets, UAVs), arrow = Arrow (ballistic missiles only)
+const SYSTEMS = {
+  dome: { range: 40, mag: 8, reload: 4, v: 5, pk: 0.9, cost: 50 },
+  arrow: { range: 260, mag: 6, reload: 8, v: 22, pk: 0.9, cost: 3000 }
+};
+const canEngage = (b, th) => (b.type === 'arrow') === (th.kind === 'ballistic');
 
 // ---------- helpers ----------
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -247,20 +352,78 @@ const $ = (id) => document.getElementById(id);
 const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
 
 // ---------- sound ----------
-let audio = null, soundOn = store.get('idSound') !== '0';
-function tone(freq, dur, type = 'sine', vol = 0.08, slide = 0) {
-  if (!audio || !soundOn) return;
-  const t = audio.currentTime, o = audio.createOscillator(), g = audio.createGain();
-  o.type = type; o.frequency.setValueAtTime(freq, t);
-  if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq + slide), t + dur);
-  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  o.connect(g).connect(audio.destination); o.start(t); o.stop(t + dur);
+// Everything is synthesised with Web Audio, so the game needs no sound files.
+const settings = Object.assign({ volume: 0.8, siren: true, voice: true, sfx: true },
+  (() => { try { return JSON.parse(store.get('idSettings') || '{}'); } catch (e) { return {}; } })());
+const saveSettings = () => store.set('idSettings', JSON.stringify(settings));
+let audio = null, master = null, noise = null;
+function initAudio() {
+  if (audio) { if (audio.state === 'suspended') audio.resume(); return; }
+  try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { audio = null; return; }
+  master = audio.createGain(); master.gain.value = settings.volume; master.connect(audio.destination);
+  noise = audio.createBuffer(1, audio.sampleRate * 2, audio.sampleRate);
+  const d = noise.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
 }
-let lastSiren = 0;
-function siren() {
-  if (!audio || performance.now() - lastSiren < 2500) return;
-  lastSiren = performance.now();
-  tone(620, 0.9, 'sawtooth', 0.03, 260);
+// filtered noise burst: rockets, interceptors and explosions are all built from this
+function burst({ dur, vol, type = 'bandpass', f0, f1, q = 1, attack = 0.01 }) {
+  if (!audio || !settings.sfx) return;
+  const t = audio.currentTime, src = audio.createBufferSource(), f = audio.createBiquadFilter(), g = audio.createGain();
+  src.buffer = noise; src.loop = true;
+  f.type = type; f.Q.value = q; f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + attack); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(f).connect(g).connect(master); src.start(t); src.stop(t + dur + 0.05);
+}
+function thump(freq, dur, vol) {
+  if (!audio || !settings.sfx) return;
+  const t = audio.currentTime, o = audio.createOscillator(), g = audio.createGain();
+  o.frequency.setValueAtTime(freq, t); o.frequency.exponentialRampToValueAtTime(freq * 0.4, t + dur);
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(master); o.start(t); o.stop(t + dur);
+}
+const SFX = {
+  enemyLaunch: () => burst({ dur: 0.9, vol: 0.06, f0: 300, f1: 1100, q: 2, attack: 0.15 }),
+  interceptor: () => { burst({ dur: 1.1, vol: 0.28, f0: 700, f1: 3200, q: 1.2, attack: 0.02 }); thump(110, 0.25, 0.25); },
+  arrow: () => { burst({ dur: 1.8, vol: 0.32, f0: 300, f1: 2400, q: 0.8, attack: 0.05 }); thump(70, 0.6, 0.3); },
+  intercept: () => { burst({ dur: 1.4, vol: 0.4, type: 'lowpass', f0: 2500, f1: 150, attack: 0.005 }); thump(80, 0.5, 0.35); },
+  impact: () => { burst({ dur: 2.4, vol: 0.55, type: 'lowpass', f0: 900, f1: 60, attack: 0.005 }); thump(50, 1.2, 0.5); },
+  open: () => burst({ dur: 1.2, vol: 0.12, type: 'lowpass', f0: 600, f1: 80, attack: 0.01 }),
+  denied: () => thump(160, 0.15, 0.12),
+  jet: () => burst({ dur: 2.6, vol: 0.25, f0: 200, f1: 1400, q: 0.6, attack: 0.8 })
+};
+
+// Rising and falling civil-defence siren; it sounds while any city has an alert.
+let siren = null, sirenOffAt = 0;
+function sirenUpdate(active) {
+  if (!audio) return;
+  const t = audio.currentTime;
+  if (active && settings.siren) {
+    sirenOffAt = t + 2;
+    if (siren) return;
+    const g = audio.createGain(), f = audio.createBiquadFilter(), lfo = audio.createOscillator(), depth = audio.createGain();
+    f.type = 'lowpass'; f.frequency.value = 2200;
+    lfo.frequency.value = 0.2; depth.gain.value = 190;
+    const oscs = [0, 4].map((det) => { const o = audio.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 540 + det; lfo.connect(depth); depth.connect(o.frequency); o.connect(f); o.start(t); return o; });
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.07, t + 0.8);
+    f.connect(g).connect(master); lfo.start(t);
+    siren = { g, oscs, lfo };
+  } else if (siren && (t > sirenOffAt || !settings.siren)) {
+    const s = siren; siren = null;
+    s.g.gain.cancelScheduledValues(t); s.g.gain.setValueAtTime(s.g.gain.value, t); s.g.gain.exponentialRampToValueAtTime(0.0001, t + 1.2);
+    [...s.oscs, s.lfo].forEach((o) => o.stop(t + 1.3));
+  }
+}
+
+// Spoken "צבע אדום" announcement, when the device has a Hebrew voice.
+let heVoice = null;
+function findVoice() { try { heVoice = speechSynthesis.getVoices().find((v) => /^he|^iw/i.test(v.lang)) || null; } catch (e) { heVoice = null; } updateVoiceNote(); }
+if ('speechSynthesis' in window) { findVoice(); speechSynthesis.onvoiceschanged = findVoice; }
+let lastVoice = 0;
+function announce(cityName) {
+  if (!settings.voice || !heVoice || G.speed > 1 || speechSynthesis.speaking || performance.now() - lastVoice < 3000) return;
+  lastVoice = performance.now();
+  const u = new SpeechSynthesisUtterance(`צבע אדום. צבע אדום. ${cityName}`);
+  u.voice = heVoice; u.lang = heVoice.lang; u.rate = 1.05; u.volume = settings.volume;
+  speechSynthesis.speak(u);
 }
 
 // ---------- state ----------
@@ -268,64 +431,78 @@ let G;
 function newGame() {
   G = {
     t: 0, wave: 0, phase: 'intro', speed: 1, paused: false,
-    trust: 100, rel: 60, reserve: 40, cost: 0, kills: 0, cityHits: 0, fired: 0,
-    threats: [], ints: [], fx: [], queue: [], waveHits: 0,
-    mod: { gaza: 1, lebanon: 1, shelter: 1 }, usedCards: [],
-    batteries: ['sderot', 'ashdod', 'dan', 'haifa', 'galil'].map(addBattery)
+    trust: 100, rel: 60, det: 30, reserve: 40, arrows: 12, cost: 0, kills: 0, cityHits: 0, fired: 0, strikes: 0, lost: 0,
+    threats: [], ints: [], fx: [], queue: [], waveHits: 0, shelter: 1, usedCards: [], sortie: null,
+    fleet: Object.fromEntries(Object.entries(AIRCRAFT).map(([k, a]) => [k, a.count])),
+    c: Object.fromEntries(Object.keys(COUNTRIES).map((k) => [k, { active: 0, sup: 1, struck: 0 }])),
+    batteries: ['sderot', 'ashdod', 'dan', 'haifa', 'galil', 'arrow'].map(addBattery)
   };
   CITIES.forEach((c) => { c.hits = 0; c.alert = 0; });
 }
 function addBattery(id) {
   const [name, a, b] = BATTERY_SITES[id];
-  return { id, name, ...km(a, b), ammo: MAG, reload: 0, flash: 0 };
+  const type = id === 'arrow' ? 'arrow' : 'dome';
+  return { id, type, name, ...km(a, b), ...SYSTEMS[type], ammo: SYSTEMS[type].mag, reloadT: 0, flash: 0 };
 }
+// between waves: will this country fire in the coming wave? (Lebanon joins from wave 2, i.e. always by the first break)
+const firing = (id) => BASE_FRONTS.includes(id) || G.c[id].active > 0;
 
 // ---------- waves ----------
 function startWave() {
   G.wave++; G.waveHits = 0; G.phase = 'wave'; G.t = 0;
   const n = G.wave;
-  const total = 10 + 6 * n;
+  const news = [];
+  // escalation: far fronts join on their own as the war drags on
+  if (n >= 4) for (const id of ['yemen', 'iraq']) if (!G.c[id].active && Math.random() < 0.3) { G.c[id].active = 2; news.push(`${COUNTRIES[id].actor} הצטרפו לירי`); }
+  if (n >= 6 && !G.c.iran.active && !G.c.iran.struck && Math.random() < 0.2) { G.c.iran.active = 1; news.push('מתקפת טילים מאיראן'); }
+
+  const detF = clamp(1.3 - G.det / 100, 0.6, 1.3);
+  const total = (10 + 6 * n) * detF;
+  const leb = n >= 2 ? Math.min(0.5, 0.2 + 0.08 * n) : 0;
+  const count = { gaza: total * (1 - leb), lebanon: total * leb };
+  for (const id of Object.keys(COUNTRIES)) if (!BASE_FRONTS.includes(id) && G.c[id].active > 0) count[id] = (COUNTRIES[id].fire + n) * detF;
   const dur = 38 + 6 * n;
-  const leb = n >= 2 ? Math.min(0.5, 0.2 + 0.08 * n) : 0;   // share of fire coming from Lebanon
-  const count = { gaza: Math.round(total * (1 - leb) * G.mod.gaza), lebanon: Math.round(total * leb * G.mod.lebanon) };
   const salvos = [];
-  for (const front of Object.keys(count)) {
-    let left = count[front];
+  for (const id of Object.keys(count)) {
+    let left = Math.round(count[id] * G.c[id].sup);
     while (left > 0) {
       const size = Math.min(left, 1 + Math.floor(Math.random() * Math.min(2 + n, 7)));
-      salvos.push({ t: rnd(2, dur), size, front });
+      salvos.push({ t: rnd(2, dur), size, front: id });
       left -= size;
     }
   }
   G.queue = [];
   for (const s of salvos) {
     for (let i = 0; i < s.size; i++) {
-      const uav = s.front === 'lebanon' && n >= 3 && Math.random() < 0.22;
-      G.queue.push({ t: s.t + rnd(0, 0.9), front: s.front, kind: uav ? 'uav' : 'rocket' });
+      let kind = pick(COUNTRIES[s.front].kinds);
+      if (s.front === 'lebanon' && n < 3) kind = 'rocket';
+      G.queue.push({ t: s.t + rnd(0, 0.9), front: s.front, kind });
     }
   }
   G.queue.sort((a, b) => a.t - b.t);
-  G.mod.gaza = 1; G.mod.lebanon = 1;
+  for (const id of Object.keys(G.c)) { G.c[id].sup = 1; if (G.c[id].active > 0 && !BASE_FRONTS.includes(id)) G.c[id].active--; }
+  const fronts = Object.keys(count).filter((id) => count[id] >= 0.5 && (id !== 'lebanon' || n >= 2)).map((id) => COUNTRIES[id].name);
   $('waveNo').textContent = n;
-  say(`גל ${n} החל` + (n === 2 ? ' · ירי גם מלבנון' : n === 3 ? ' · כטב״מים בצפון' : ''), 'warn');
+  say(`גל ${n} החל · ירי מ${fronts.join(', ')}`, 'warn');
+  news.forEach((m) => say(m, 'bad'));
+  if (Object.keys(count).some((id) => COUNTRIES[id].kinds.some((k) => k[0] === 'ballistic'))) say('טילים בליסטיים: רק סוללת חץ יכולה ליירט', 'warn');
 }
 
 let nextId = 1;
 function spawn(q) {
-  const F = FRONTS[q.front];
+  const F = COUNTRIES[q.front];
   const from = F.origin();
   const aim = city(pick(F.targets));
   const d0 = dist(from, aim);
-  const spread = q.kind === 'uav' ? 0.6 : 0.9 + 0.035 * d0;
+  const spread = q.kind === 'uav' ? 0.6 : q.kind === 'ballistic' ? 1.6 : 0.9 + 0.035 * d0;
   const to = { x: aim.x + gauss() * spread, y: aim.y + gauss() * spread };
   const d = dist(from, to);
-  const T = q.kind === 'uav' ? d / 0.45 : 6 + d / 5;
+  const T = q.kind === 'uav' ? clamp(d / 0.45, 12, 75) : q.kind === 'ballistic' ? 22 + d / 40 : 6 + d / 5;
   const hitCity = CITIES.find((c) => dist(c, to) <= c.r) || null;
-  const zone = hitCity ? hitCity.name : inPoly(to, SEA) ? 'ים' : 'שטח פתוח';
-  const th = { id: nextId++, kind: q.kind, front: q.front, from, to, t0: G.t, T, city: hitCity, zone, locks: 0, trail: [], dead: false };
+  const th = { id: nextId++, kind: q.kind, front: q.front, from, to, t0: G.t, T, city: hitCity, locks: 0, trail: [], dead: false };
   G.threats.push(th);
-  if (hitCity) { hitCity.alert++; siren(); }
-  tone(160, 0.25, 'triangle', 0.03, -80);
+  if (hitCity) { hitCity.alert++; announce(hitCity.name); }
+  if (q.kind !== 'ballistic') SFX.enemyLaunch();
 }
 function posOf(th, t) {
   const s = clamp((t - th.t0) / th.T, 0, 1);
@@ -339,7 +516,7 @@ function solve(b, th) {
   for (let t = G.t + 0.15; t < end; t += 0.05) {
     const p = posOf(th, t);
     const d = dist(b, p);
-    if (d <= RANGE && d / V_INT <= t - G.t) return { t, p };
+    if (d <= b.range && d / b.v <= t - G.t) return { t, p };
   }
   return null;
 }
@@ -347,32 +524,38 @@ function engage(th) {
   if (!th || th.dead) return;
   let best = null, any = false;
   for (const b of G.batteries) {
+    if (!canEngage(b, th)) continue;
     const sol = solve(b, th);
     if (!sol) continue;
     any = true;
     if (b.ammo < 1) continue;
     if (!best || sol.t < best.sol.t) best = { b, sol };
   }
-  if (!best) { say(any ? 'אין מיירטים זמינים בסוללות שבטווח' : 'האיום מחוץ לטווח היירוט', 'warn'); tone(140, 0.15, 'square', 0.03); return; }
+  if (!best) {
+    const why = !any ? (th.kind === 'ballistic' ? 'חץ לא יספיק ליירט את הטיל הזה' : 'האיום מחוץ לטווח היירוט') : th.kind === 'ballistic' ? 'אין מיירטי חץ זמינים' : 'אין מיירטים זמינים בסוללות שבטווח';
+    say(why, 'warn'); SFX.denied(); return;
+  }
   const { b, sol } = best;
-  b.ammo--; b.flash = 1; if (b.reload <= 0) b.reload = RELOAD;
+  b.ammo--; b.flash = 1; if (b.reloadT <= 0) b.reloadT = b.reload;
   th.locks++;
-  G.fired++; G.cost += TAMIR_COST;
-  G.ints.push({ from: { x: b.x, y: b.y }, p: sol.p, t0: G.t, t1: sol.t, th, kill: Math.random() < P_KILL, trail: [] });
-  tone(900, 0.35, 'sawtooth', 0.035, -600);
+  G.fired++; G.cost += b.cost;
+  G.ints.push({ from: { x: b.x, y: b.y }, p: sol.p, t0: G.t, t1: sol.t, th, arrow: b.type === 'arrow', kill: Math.random() < b.pk, trail: [] });
+  (b.type === 'arrow' ? SFX.arrow : SFX.interceptor)();
 }
 
 // ---------- update ----------
 function update(dt) {
+  if (G.phase === 'strike') return updateSortie(dt);
   if (G.phase !== 'wave') return;
   G.t += dt;
   while (G.queue.length && G.queue[0].t <= G.t) spawn(G.queue.shift());
 
   for (const b of G.batteries) {
     b.flash = Math.max(0, b.flash - dt * 2);
-    if (b.ammo < MAG && G.reserve > 0) {
-      b.reload -= dt;
-      if (b.reload <= 0) { b.ammo++; G.reserve--; b.reload = b.ammo < MAG ? RELOAD : 0; }
+    const stock = b.type === 'arrow' ? 'arrows' : 'reserve';
+    if (b.ammo < b.mag && G[stock] > 0) {
+      b.reloadT -= dt;
+      if (b.reloadT <= 0) { b.ammo++; G[stock]--; b.reloadT = b.ammo < b.mag ? b.reload : 0; }
     }
   }
 
@@ -389,7 +572,7 @@ function update(dt) {
         th.dead = true; G.kills++;
         if (th.city) th.city.alert--;
         G.fx.push({ x: it.p.x, y: it.p.y, t: 0, kind: 'kill' });
-        tone(220, 0.5, 'sine', 0.06, -120);
+        SFX.intercept();
         if (th.city) say(`יירוט מוצלח מעל ${th.city.name}`, 'good');
       } else {
         G.fx.push({ x: it.p.x, y: it.p.y, t: 0, kind: 'miss' });
@@ -408,13 +591,14 @@ function update(dt) {
       th.dead = true;
       if (th.city) {
         th.city.alert--; th.city.hits++; G.cityHits++; G.waveHits++;
-        const loss = th.city.w * G.mod.shelter;
+        const loss = th.city.w * G.shelter * (th.kind === 'ballistic' ? 1.6 : 1);
         G.trust = Math.max(0, G.trust - loss);
         G.fx.push({ x: th.to.x, y: th.to.y, t: 0, kind: 'hit' });
         say(`נפילה ב${th.city.name}`, 'bad');
-        tone(70, 0.8, 'sine', 0.12, -30);
+        SFX.impact();
       } else {
         G.fx.push({ x: th.to.x, y: th.to.y, t: 0, kind: 'open' });
+        SFX.open();
       }
     }
   }
@@ -430,6 +614,8 @@ function endWave() {
   G.phase = 'between';
   const aid = G.rel >= 25 ? Math.round(G.rel / 6) : 0;
   G.reserve += aid;
+  if (aid) G.arrows += 1;
+  G.det = Math.max(0, G.det - 3);
   if (!G.waveHits) G.trust = Math.min(100, G.trust + 4);
   say(G.waveHits ? `גל ${G.wave} הסתיים · ${G.waveHits} נפילות בערים` : `גל ${G.wave} הסתיים ללא נפילות בערים`, G.waveHits ? 'warn' : 'good');
   say(aid ? `סיוע מבעלות ברית: +${aid} מיירטים למלאי` : 'בידוד מדיני: לא התקבל סיוע', aid ? 'good' : 'bad');
@@ -439,31 +625,35 @@ function endWave() {
 
 // ---------- diplomacy ----------
 const CARDS = [
-  { id: 'egypt', title: 'מצרים מציעה תיווך', text: 'קהיר מציעה הפסקת אש זמנית מול עזה. הקבינט צריך להחליט עכשיו.', opts: [
+  { id: 'egypt', title: 'מצרים מציעה תיווך', text: 'קהיר מציעה הפסקת אש זמנית מול עזה. הקבינט צריך להחליט עכשיו.', when: () => !G.c.egypt.struck, opts: [
     { label: 'לקבל את התיווך', hint: 'פחות ירי מעזה בגל הבא · יחסי חוץ +10 · אמון −4', fx: { gaza: 0.4, rel: 10, trust: -4 } },
     { label: 'לדחות ולהמשיך במבצע', hint: 'יותר ירי מעזה בגל הבא · יחסי חוץ −5', fx: { gaza: 1.3, rel: -5 } }] },
   { id: 'us', title: 'וושינגטון על הקו', text: 'הממשל האמריקאי מוכן להעביר משלוח מיירטים דחוף, ומבקש איפוק בגזרה הצפונית.', opts: [
-    { label: 'לבקש משלוח חירום', hint: 'מלאי +50 · יחסי חוץ −5', fx: { reserve: 50, rel: -5 } },
+    { label: 'לבקש משלוח חירום', hint: 'מלאי +50 · מיירטי חץ +4 · יחסי חוץ −5', fx: { reserve: 50, arrows: 4, rel: -5 } },
     { label: 'לבקש ולהתחייב לאיפוק בצפון', hint: 'מלאי +35 · יחסי חוץ +5 · יותר ירי מלבנון', fx: { reserve: 35, rel: 5, lebanon: 1.4 } },
     { label: 'לא לבקש בינתיים', hint: 'יחסי חוץ +3', fx: { rel: 3 } }] },
-  { id: 'hezb', title: 'חיזבאללה מאיים', text: 'אמ״ן מעריך שחיזבאללה מתכונן להרחיב את הירי על הצפון בימים הקרובים.', minWave: 1, opts: [
-    { label: 'תקיפה מקדימה בלבנון', hint: 'פחות ירי מלבנון · יחסי חוץ −15', fx: { lebanon: 0.5, rel: -15 } },
+  { id: 'hezb', title: 'חיזבאללה מאיים', text: 'אמ״ן מעריך שחיזבאללה מתכונן להרחיב את הירי על הצפון בימים הקרובים.', opts: [
     { label: 'מסר מרתיע דרך פריז', hint: 'יחסי חוץ +5', fx: { rel: 5 } },
+    { label: 'איום פומבי של ראש הממשלה', hint: 'הרתעה +8 · יחסי חוץ −5', fx: { det: 8, rel: -5 } },
     { label: 'להתעלם', hint: 'יותר ירי מלבנון בגל הבא', fx: { lebanon: 1.5 } }] },
   { id: 'battery', title: 'סוללה נוספת זמינה', text: 'סוללת מילואים מוכנה לפריסה. הטעינה הראשונה שלה תבוא מהמלאי הלאומי.', opts: [
     { label: 'לפרוס בירושלים', hint: 'סוללה חדשה · מלאי −15', fx: { battery: 'jlm', reserve: -15 } },
     { label: 'לפרוס בבאר שבע', hint: 'סוללה חדשה · מלאי −15', fx: { battery: 'bs', reserve: -15 } },
     { label: 'להשאיר במילואים', hint: 'מלאי +10', fx: { reserve: 10 } }] },
   { id: 'un', title: 'מועצת הביטחון מתכנסת', text: 'האו״ם דורש מכל הצדדים ריסון. העולם מחכה לתגובה הישראלית.', opts: [
-    { label: 'להודיע על ריסון', hint: 'יחסי חוץ +10 · אמון −3', fx: { rel: 10, trust: -3 } },
+    { label: 'להודיע על ריסון', hint: 'יחסי חוץ +10 · הרתעה −5', fx: { rel: 10, det: -5 } },
     { label: 'לדחות את הדרישה', hint: 'יחסי חוץ −10 · אמון +4', fx: { rel: -10, trust: 4 } }] },
   { id: 'home', title: 'פיקוד העורף', text: 'פיקוד העורף מבקש להחמיר את ההנחיות ולסגור מוסדות לימוד ומקומות עבודה.', opts: [
     { label: 'להחמיר הנחיות', hint: 'נפילות בערים פוגעות פחות באמון בגל הבא · אמון −3', fx: { shelter: 0.5, trust: -3 } },
-    { label: 'שגרה ככל האפשר', hint: 'אמון +3', fx: { trust: 3, shelter: 1 } }] }
+    { label: 'שגרה ככל האפשר', hint: 'אמון +3', fx: { trust: 3 } }] },
+  { id: 'apology', title: 'משבר מדיני', text: 'שגרירים זומנו לבירור אחרי התקיפות. בירות ערב דורשות צעד מרגיע.', when: () => G.c.jordan.struck || G.c.egypt.struck, opts: [
+    { label: 'להתנצל ולפצות', hint: 'יחסי חוץ +15 · הרתעה −8', fx: { rel: 15, det: -8 } },
+    { label: 'לעמוד על שלנו', hint: 'הרתעה +5 · יחסי חוץ −5', fx: { det: 5, rel: -5 } }] }
 ];
 function showDecision() {
+  if (G.phase === 'over') return;
   const deployed = new Set(G.batteries.map((b) => b.id));
-  let pool = CARDS.filter((c) => !G.usedCards.slice(-3).includes(c.id));
+  let pool = CARDS.filter((c) => !G.usedCards.slice(-3).includes(c.id) && (!c.when || c.when()));
   pool = pool.filter((c) => c.id !== 'battery' || !(deployed.has('jlm') && deployed.has('bs')));
   const card = pool[Math.floor(Math.random() * pool.length)];
   G.usedCards.push(card.id);
@@ -473,24 +663,122 @@ function showDecision() {
   const box = $('decOpts'); box.innerHTML = '';
   for (const o of card.opts) {
     if (o.fx.battery && deployed.has(o.fx.battery)) continue;
-    const b = document.createElement('button');
-    b.className = 'opt';
-    b.innerHTML = `<b></b><span></span>`;
-    b.querySelector('b').textContent = o.label;
-    b.querySelector('span').textContent = o.hint;
-    b.onclick = () => { applyFx(o.fx); $('decision').hidden = true; startWave(); };
-    box.appendChild(b);
+    box.appendChild(optButton(o.label, o.hint, () => { applyFx(o.fx); $('decision').hidden = true; showStrike(); }));
   }
   $('decision').hidden = false;
 }
+function optButton(label, hint, onclick) {
+  const b = document.createElement('button');
+  b.className = 'opt';
+  b.innerHTML = '<b></b><span></span>';
+  b.querySelector('b').textContent = label;
+  b.querySelector('span').textContent = hint;
+  b.onclick = onclick;
+  return b;
+}
 function applyFx(fx) {
+  G.shelter = 1;
   if (fx.rel) G.rel = clamp(G.rel + fx.rel, 0, 100);
+  if (fx.det) G.det = clamp(G.det + fx.det, 0, 100);
   if (fx.trust) G.trust = clamp(G.trust + fx.trust, 1, 100);
   if (fx.reserve) G.reserve = Math.max(0, G.reserve + fx.reserve);
-  if (fx.gaza) G.mod.gaza = fx.gaza;
-  if (fx.lebanon) G.mod.lebanon = fx.lebanon;
-  G.mod.shelter = fx.shelter || 1;
+  if (fx.arrows) G.arrows += fx.arrows;
+  if (fx.gaza) G.c.gaza.sup *= fx.gaza;
+  if (fx.lebanon) G.c.lebanon.sup *= fx.lebanon;
+  if (fx.shelter) G.shelter = fx.shelter;
   if (fx.battery) { G.batteries.push(addBattery(fx.battery)); say(`סוללה נפרסה ב${BATTERY_SITES[fx.battery][0]}`, 'good'); }
+}
+
+// ---------- air strikes ----------
+let pickC = null, pickA = null;
+const chance = (cid, aid) => clamp(AIRCRAFT[aid].base - COUNTRIES[cid].air * AIRCRAFT[aid].airMul, 0.3, 0.97);
+function showStrike() {
+  pickC = null; pickA = null;
+  $('strikeKicker').textContent = `חדר מבצעים · לפני גל ${G.wave + 1}`;
+  const box = $('strikeCountries'); box.innerHTML = '';
+  for (const [id, c] of Object.entries(COUNTRIES)) {
+    const b = document.createElement('button');
+    b.className = 'chip'; b.dataset.id = id;
+    const tag = firing(id) ? '<i class="tag fire">יורה</i>' : c.stance === 'neutral' ? '<i class="tag neutral">ניטרלית</i>' : '<i class="tag">עוינת</i>';
+    b.innerHTML = `<b></b><span></span>${tag}`;
+    b.querySelector('b').textContent = c.name;
+    b.querySelector('span').textContent = c.actor;
+    b.onclick = () => { pickC = id; pickA = null; renderStrike(); };
+    box.appendChild(b);
+  }
+  renderStrike();
+  $('strike').hidden = false;
+}
+function renderStrike() {
+  document.querySelectorAll('#strikeCountries .chip').forEach((b) => b.classList.toggle('sel', b.dataset.id === pickC));
+  const planes = $('strikePlanes'); planes.innerHTML = '';
+  $('planesBox').hidden = !pickC;
+  if (pickC) {
+    const c = COUNTRIES[pickC];
+    for (const [id, a] of Object.entries(AIRCRAFT)) {
+      const n = G.fleet[id];
+      const why = !n ? 'אין מטוסים זמינים' : c.far && !a.long ? 'טווח קצר מדי' : '';
+      const b = optButton(`${a.name} · ${n} זמינים`, why || `${a.note} · סיכוי הצלחה ${Math.round(chance(pickC, id) * 100)}%`, () => { pickA = id; renderStrike(); });
+      b.disabled = !!why;
+      b.classList.toggle('sel', pickA === id);
+      planes.appendChild(b);
+    }
+  }
+  const out = $('strikeOutcome');
+  if (pickC) {
+    const c = COUNTRIES[pickC], lines = [`בהצלחה: הרתעה +${c.det} · יחסי חוץ −${c.rel}`];
+    if (firing(pickC)) lines.push(`פחות ירי מ${c.name} בגל הבא`);
+    if (c.stance === 'neutral') lines.push(`⚠ ${c.name} תגיב בירי על ישראל בשני הגלים הבאים, גם אם התקיפה תיכשל`);
+    else if (pickC === 'iran') lines.push('⚠ איראן תגיב במטח טילים בליסטיים בגל הבא');
+    else if (!firing(pickC)) lines.push(`⚠ ייתכן ש${c.actor} יגיבו בירי`);
+    lines.push('בכישלון: אובדן מטוס · אמון −5');
+    out.innerHTML = lines.map((l) => `<div></div>`).join('');
+    [...out.children].forEach((d, i) => { d.textContent = lines[i]; if (lines[i].startsWith('⚠')) d.className = 'warn'; });
+  } else out.textContent = 'בחר יעד לתקיפה, או המשך בלי תקיפה.';
+  $('strikeGo').disabled = !(pickC && pickA);
+}
+function launchStrike() {
+  $('strike').hidden = true;
+  const a = AIRCRAFT[pickA], from = km(...a.home), to = km(...COUNTRIES[pickC].aim);
+  G.sortie = { c: pickC, a: pickA, from, to, t: 0, dur: 2.6 + Math.min(2, dist(from, to) / 250) };
+  G.phase = 'strike';
+  SFX.jet();
+}
+function updateSortie(dt) {
+  const s = G.sortie;
+  s.t += dt;
+  G.fx.forEach((f) => (f.t += dt));
+  G.fx = G.fx.filter((f) => f.t < 1.5);
+  if (s.t >= s.dur && !s.done) { s.done = true; resolveStrike(s); }
+}
+function resolveStrike(s) {
+  const c = COUNTRIES[s.c], st = G.c[s.c], a = AIRCRAFT[s.a];
+  const ok = Math.random() < chance(s.c, s.a);
+  const lines = [];
+  G.strikes++; st.struck++;
+  if (ok) {
+    G.fx.push({ x: s.to.x, y: s.to.y, t: 0, kind: 'kill' }); SFX.impact();
+    G.det = clamp(G.det + c.det, 0, 100); G.rel = clamp(G.rel - c.rel, 0, 100);
+    lines.push(`הרתעה +${c.det}`, `יחסי חוץ −${c.rel}`);
+    if (firing(s.c)) {
+      st.sup = a.heavy ? 0.3 : 0.45;
+      if (!BASE_FRONTS.includes(s.c)) st.active = Math.max(0, st.active - 1);
+      lines.push(`יכולת הירי של ${c.actor} נפגעה`);
+    }
+  } else {
+    G.fleet[s.a]--; G.lost++;
+    G.trust = Math.max(1, G.trust - 5); G.rel = clamp(G.rel - Math.round(c.rel / 2), 0, 100);
+    lines.push(`מטוס ${a.name} אבד`, 'אמון −5', `יחסי חוץ −${Math.round(c.rel / 2)}`);
+  }
+  // who answers fire with fire
+  if (c.stance === 'neutral') { st.active = Math.max(st.active, 2); lines.push(`${c.name} מגיבה: ירי על ישראל בשני הגלים הבאים`); }
+  else if (s.c === 'iran') { st.active = Math.max(st.active, 1); lines.push('איראן מכריזה על תגובה'); }
+  else if (!firing(s.c) && Math.random() < 0.5) { st.active = 1; lines.push(`${c.actor} מגיבים בירי`); }
+  $('resTitle').textContent = ok ? `התקיפה ב${c.name} הצליחה` : `התקיפה ב${c.name} נכשלה`;
+  $('resTitle').style.color = ok ? 'var(--green)' : 'var(--red)';
+  $('resLines').innerHTML = lines.map(() => '<li></li>').join('');
+  [...$('resLines').children].forEach((li, i) => (li.textContent = lines[i]));
+  setTimeout(() => { if (G.phase === 'strike') $('result').hidden = false; }, 700);
 }
 
 function gameOver() {
@@ -498,14 +786,16 @@ function gameOver() {
   const best = Math.max(+(store.get('idBest') || 0), G.wave - 1);
   store.set('idBest', best);
   $('overTitle').textContent = 'אמון הציבור קרס';
-  const rows = [['גלים שהושלמו', G.wave - 1], ['יירוטים', G.kills], ['נפילות בערים', G.cityHits], ['מיירטים ששוגרו', G.fired], ['עלות', '$' + (G.cost / 1000).toFixed(1) + 'M'], ['שיא אישי', best + ' גלים']];
+  const rows = [['גלים שהושלמו', G.wave - 1], ['יירוטים', G.kills], ['נפילות בערים', G.cityHits], ['מיירטים ששוגרו', G.fired], ['תקיפות', G.strikes], ['מטוסים שאבדו', G.lost], ['עלות', '$' + (G.cost / 1000).toFixed(1) + 'M'], ['שיא אישי', best + ' גלים']];
   $('overStats').innerHTML = rows.map(([k, v]) => `<div>${k}<b class="num">${v}</b></div>`).join('');
   $('over').hidden = false;
 }
 
 // ---------- messages / HUD ----------
 function say(text, cls = '') {
-  const box = $('log'), d = document.createElement('div');
+  const box = $('log');
+  if (box.lastChild && box.lastChild.textContent === text && box.lastChild.style.opacity !== '0') return;
+  const d = document.createElement('div');
   d.textContent = text; d.className = cls; box.appendChild(d);
   while (box.children.length > 4) box.firstChild.remove();
   setTimeout(() => { d.style.opacity = 0; setTimeout(() => d.remove(), 700); }, 4200);
@@ -516,11 +806,13 @@ function setBar(el, v) {
 }
 let lastAlertText = '';
 function hud() {
-  setBar($('trustBar'), G.trust); setBar($('relBar'), G.rel);
+  setBar($('trustBar'), G.trust); setBar($('relBar'), G.rel); setBar($('detBar'), G.det);
   $('reserve').textContent = G.reserve;
+  $('arrows').textContent = G.arrows;
   $('kills').textContent = G.kills;
   $('cost').textContent = '$' + (G.cost >= 1000 ? (G.cost / 1000).toFixed(1) + 'M' : G.cost + 'K');
   const names = CITIES.filter((c) => c.alert > 0).map((c) => c.name);
+  sirenUpdate(names.length > 0 && G.phase === 'wave' && !G.paused);
   const text = names.length ? 'צבע אדום: ' + names.join(' · ') : '';
   if (text !== lastAlertText) {
     lastAlertText = text;
@@ -570,7 +862,7 @@ function zoomAt(px, py, f) {
 const pts = new Map();
 let gesture = null;
 cv.addEventListener('pointerdown', (e) => {
-  if (!audio) initAudio();
+  initAudio();
   cv.setPointerCapture(e.pointerId);
   pts.set(e.pointerId, { x: e.offsetX, y: e.offsetY, x0: e.offsetX, y0: e.offsetY });
   if (pts.size === 1) gesture = { moved: false };
@@ -641,7 +933,8 @@ function draw(now) {
 
   // battery coverage
   for (const b of G.batteries) {
-    ctx.beginPath(); ctx.arc(sx(b.x), sy(b.y), RANGE * view.s, 0, Math.PI * 2);
+    if (b.type === 'arrow') continue;
+    ctx.beginPath(); ctx.arc(sx(b.x), sy(b.y), b.range * view.s, 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(79, 209, 232, .025)'; ctx.fill();
     ctx.setLineDash([2, 5]); ctx.strokeStyle = 'rgba(79, 209, 232, .18)'; ctx.stroke(); ctx.setLineDash([]);
   }
@@ -667,6 +960,7 @@ function draw(now) {
     if (!th.cur) continue;
     const x = sx(th.cur.x), y = sy(th.cur.y), ix = sx(th.to.x), iy = sy(th.to.y);
     const col = th.city ? '#FF4D4D' : '#7D8B87';
+    const ball = th.kind === 'ballistic';
     ctx.setLineDash([2, 4]); ctx.strokeStyle = th.city ? 'rgba(255, 77, 77, .35)' : 'rgba(125, 139, 135, .25)'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(ix, iy); ctx.stroke(); ctx.setLineDash([]);
     ctx.beginPath(); ctx.arc(ix, iy, th.city ? 6 + 2 * pulse : 5, 0, Math.PI * 2); ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.stroke();
@@ -675,10 +969,14 @@ function draw(now) {
 
     ctx.lineWidth = 1.6;
     for (let i = 1; i < th.trail.length; i++) {
-      ctx.strokeStyle = th.kind === 'uav' ? `rgba(242, 179, 61, ${i / th.trail.length * 0.6})` : `rgba(255, 150, 90, ${i / th.trail.length * 0.8})`;
+      const a = i / th.trail.length;
+      ctx.strokeStyle = ball ? `rgba(232, 121, 249, ${a * 0.8})` : th.kind === 'uav' ? `rgba(242, 179, 61, ${a * 0.6})` : `rgba(255, 150, 90, ${a * 0.8})`;
       ctx.beginPath(); ctx.moveTo(sx(th.trail[i - 1].x), sy(th.trail[i - 1].y)); ctx.lineTo(sx(th.trail[i].x), sy(th.trail[i].y)); ctx.stroke();
     }
-    if (th.kind === 'uav') {
+    if (ball) {
+      ctx.fillStyle = '#E879F9'; ctx.beginPath(); ctx.arc(x, y, 4 + 3 * Math.sin(Math.PI * th.cur.s), 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(232, 121, 249, .5)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI * 2); ctx.stroke();
+    } else if (th.kind === 'uav') {
       ctx.fillStyle = '#F2B33D'; ctx.beginPath(); ctx.moveTo(x, y - 5); ctx.lineTo(x + 5, y); ctx.lineTo(x, y + 5); ctx.lineTo(x - 5, y); ctx.closePath(); ctx.fill();
     } else {
       const h = 4 * th.cur.s * (1 - th.cur.s); // apogee in the middle of the flight
@@ -692,7 +990,7 @@ function draw(now) {
     if (!it.cur) continue;
     ctx.lineWidth = 1.4;
     for (let i = 1; i < it.trail.length; i++) {
-      ctx.strokeStyle = `rgba(79, 209, 232, ${i / it.trail.length})`;
+      ctx.strokeStyle = it.arrow ? `rgba(196, 181, 253, ${i / it.trail.length})` : `rgba(79, 209, 232, ${i / it.trail.length})`;
       ctx.beginPath(); ctx.moveTo(sx(it.trail[i - 1].x), sy(it.trail[i - 1].y)); ctx.lineTo(sx(it.trail[i].x), sy(it.trail[i].y)); ctx.stroke();
     }
     ctx.fillStyle = '#E8FBFF'; ctx.beginPath(); ctx.arc(sx(it.cur.x), sy(it.cur.y), 2, 0, Math.PI * 2); ctx.fill();
@@ -700,15 +998,33 @@ function draw(now) {
 
   // batteries
   for (const b of G.batteries) {
-    const x = sx(b.x), y = sy(b.y);
-    ctx.fillStyle = b.flash ? `rgba(232, 251, 255, ${0.5 + b.flash / 2})` : (b.ammo ? '#4FD1E8' : '#3F5E66');
-    ctx.beginPath(); ctx.moveTo(x, y - 7); ctx.lineTo(x + 6.5, y + 5); ctx.lineTo(x - 6.5, y + 5); ctx.closePath(); ctx.fill();
-    const w = 3, gap = 1.5, total = MAG * (w + gap) - gap;
-    for (let i = 0; i < MAG; i++) {
-      ctx.fillStyle = i < b.ammo ? '#4FD1E8' : 'rgba(79, 209, 232, .18)';
-      ctx.fillRect(x - total / 2 + i * (w + gap), y + 9, w, 5);
+    const x = sx(b.x), y = sy(b.y), arrow = b.type === 'arrow';
+    const on = arrow ? '#C4B5FD' : '#4FD1E8', off = arrow ? 'rgba(196, 181, 253, .2)' : 'rgba(79, 209, 232, .18)';
+    ctx.fillStyle = b.flash ? `rgba(232, 251, 255, ${0.5 + b.flash / 2})` : (b.ammo ? on : '#3F5E66');
+    ctx.beginPath();
+    if (arrow) { ctx.moveTo(x, y - 8); ctx.lineTo(x + 6, y); ctx.lineTo(x, y + 8); ctx.lineTo(x - 6, y); }
+    else { ctx.moveTo(x, y - 7); ctx.lineTo(x + 6.5, y + 5); ctx.lineTo(x - 6.5, y + 5); }
+    ctx.closePath(); ctx.fill();
+    const w = arrow ? 5 : 3, gap = 1.5, total = b.mag * (w + gap) - gap;
+    for (let i = 0; i < b.mag; i++) {
+      ctx.fillStyle = i < b.ammo ? on : off;
+      ctx.fillRect(x - total / 2 + i * (w + gap), y + 10, w, 5);
     }
-    if (view.s > 4.5) label(b.name, x, y + 26, 'rgba(79, 209, 232, .75)', 10);
+    if (arrow || view.s > 4.5) label(b.name, x, y + 27, arrow ? 'rgba(196, 181, 253, .85)' : 'rgba(79, 209, 232, .75)', 10);
+  }
+
+  // strike sortie
+  if (G.sortie && G.phase === 'strike') {
+    const S = G.sortie, k = Math.min(1, S.t / S.dur);
+    const px = S.from.x + (S.to.x - S.from.x) * k, py = S.from.y + (S.to.y - S.from.y) * k;
+    ctx.setLineDash([4, 4]); ctx.strokeStyle = 'rgba(61, 220, 151, .5)'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(sx(S.from.x), sy(S.from.y)); ctx.lineTo(sx(px), sy(py)); ctx.stroke(); ctx.setLineDash([]);
+    const ang = Math.atan2(-(S.to.y - S.from.y), S.to.x - S.from.x);
+    ctx.save(); ctx.translate(sx(px), sy(py)); ctx.rotate(ang);
+    ctx.fillStyle = '#3DDC97'; ctx.beginPath();
+    ctx.moveTo(10, 0); ctx.lineTo(-6, -7); ctx.lineTo(-3, 0); ctx.lineTo(-6, 7); ctx.closePath(); ctx.fill();
+    ctx.restore();
+    label(`${AIRCRAFT[S.a].name} בדרך ל${COUNTRIES[S.c].name}`, W / 2, 28, '#3DDC97', 14, 700);
   }
 
   // effects
@@ -745,15 +1061,39 @@ function frame(now) {
   hud(); draw(now);
   requestAnimationFrame(frame);
 }
-function initAudio() { try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { audio = null; } }
+function updateVoiceNote() {
+  const n = $('voiceNote'); if (!n) return;
+  n.textContent = heVoice ? '' : 'אין קול עברי במכשיר הזה, ההקראה לא תישמע';
+}
+function syncSettings() {
+  $('setSiren').checked = settings.siren; $('setVoice').checked = settings.voice; $('setSfx').checked = settings.sfx;
+  $('setVol').value = settings.volume;
+  $('setMute').textContent = settings.siren || settings.voice || settings.sfx ? 'השתק הכול' : 'הפעל הכול';
+  if (master) master.gain.value = settings.volume;
+  saveSettings();
+}
+let pausedBySettings = false;
+$('settingsBtn').onclick = () => {
+  initAudio();
+  pausedBySettings = G.phase === 'wave' && !G.paused;
+  if (pausedBySettings) G.paused = true;
+  syncSettings(); updateVoiceNote(); $('settings').hidden = false;
+};
+$('setClose').onclick = () => { $('settings').hidden = true; if (pausedBySettings) G.paused = false; };
+$('setSiren').onchange = (e) => { settings.siren = e.target.checked; syncSettings(); };
+$('setVoice').onchange = (e) => { settings.voice = e.target.checked; if (!e.target.checked) try { speechSynthesis.cancel(); } catch (x) {} syncSettings(); };
+$('setSfx').onchange = (e) => { settings.sfx = e.target.checked; syncSettings(); if (settings.sfx) SFX.intercept(); };
+$('setVol').oninput = (e) => { settings.volume = +e.target.value; syncSettings(); };
+$('setMute').onclick = () => { const on = !(settings.siren || settings.voice || settings.sfx); settings.siren = settings.voice = settings.sfx = on; syncSettings(); };
 
-$('startBtn').onclick = () => { if (!audio) initAudio(); $('intro').hidden = true; startWave(); };
-$('againBtn').onclick = () => { $('over').hidden = true; G.threats = []; newGame(); startWave(); };
-$('pauseBtn').onclick = () => { G.paused = !G.paused; $('pauseBtn').textContent = G.paused ? '▶' : '❚❚'; };
+$('startBtn').onclick = () => { initAudio(); $('intro').hidden = true; startWave(); };
+$('againBtn').onclick = () => { $('over').hidden = true; newGame(); startWave(); };
+$('strikeGo').onclick = launchStrike;
+$('strikeSkip').onclick = () => { $('strike').hidden = true; startWave(); };
+$('resNext').onclick = () => { $('result').hidden = true; G.sortie = null; startWave(); };
+$('pauseBtn').onclick = () => { if (G.phase !== 'wave') return; G.paused = !G.paused; $('pauseBtn').textContent = G.paused ? '▶' : '❚❚'; };
 $('speedBtn').onclick = () => { G.speed = G.speed === 1 ? 2 : 1; $('speedBtn').textContent = '×' + G.speed; $('speedBtn').classList.toggle('on', G.speed > 1); };
-$('soundBtn').onclick = () => { soundOn = !soundOn; store.set('idSound', soundOn ? '1' : '0'); $('soundBtn').textContent = soundOn ? '🔊' : '🔇'; $('soundBtn').classList.toggle('on', soundOn); };
-$('soundBtn').textContent = soundOn ? '🔊' : '🔇'; $('soundBtn').classList.toggle('on', soundOn);
-document.addEventListener('keydown', (e) => { if (e.code === 'Space' && G.phase === 'wave') { e.preventDefault(); $('pauseBtn').click(); } });
+document.addEventListener('keydown', (e) => { if (e.code === 'Space' && G.phase === 'wave' && $('settings').hidden) { e.preventDefault(); $('pauseBtn').click(); } });
 document.addEventListener('visibilitychange', () => { if (document.hidden && G.phase === 'wave' && !G.paused) $('pauseBtn').click(); });
 window.addEventListener('resize', resize);
 
