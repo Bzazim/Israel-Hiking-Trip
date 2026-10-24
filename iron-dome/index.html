@@ -278,7 +278,10 @@ button.rel:hover, button.rel.open { background: #183029; }
       <div class="kicker">חמ״ל הגנה אווירית</div>
       <h1>כיפת ברזל</h1>
       <p>טילים ורקטות משוגרים לעבר ישראל. אתה המפעיל: מחליט מה ליירט ומה להשאיר.</p>
-      <ul>
+      <button class="primary" id="resumeBtn" hidden style="margin-bottom:6px"></button>
+      <p id="savedAt" hidden style="font-size:12px;color:var(--muted);text-align:center;margin:0 0 10px"></p>
+      <button class="ghost" id="helpBtn" hidden style="width:100%;margin-bottom:10px">איך משחקים ▾</button>
+      <ul id="introHelp">
         <li>לחיצה על איום (או על נקודת הפגיעה הצפויה) משגרת מיירט מהסוללה הקרובה.</li>
         <li><span class="key" style="background:var(--red)"></span>טבעת אדומה: האיום ייפול בעיר. חייבים ליירט.</li>
         <li><span class="key" style="background:#7d8b87"></span>טבעת אפורה: ייפול בשטח פתוח. אפשר לחסוך מיירט.</li>
@@ -946,6 +949,7 @@ function endWave() {
   say(G.waveHits ? `גל ${G.wave} הסתיים · ${G.waveHits} נפילות בערים` : `גל ${G.wave} הסתיים ללא נפילות בערים`, G.waveHits ? 'warn' : 'good');
   say(us + eu ? `סיוע${us ? ' אמריקאי' : ''}${eu ? (us ? ' ואירופי' : ' אירופי') : ''}: +${us + eu} מיירטים למלאי` : 'בידוד מדיני: לא התקבל סיוע', us + eu ? 'good' : 'bad');
   CITIES.forEach((c) => (c.alert = 0));
+  saveGame();
   setTimeout(showDecision, 1400);
 }
 
@@ -1271,8 +1275,35 @@ function resolveStrikes() {
   if (G.phase === 'strike') $('result').hidden = false;
 }
 
+// ---------- saving ----------
+// The game is saved in this browser after every wave. A wave in progress is not saved:
+// coming back resumes at the break before the next wave.
+const SAVE_KEY = 'idSave', SAVE_VERSION = 1;
+const TRANSIENT = ['threats', 'ints', 'fx', 'queue', 'sorties', 'speed', 'paused', 'dipl', 'placing', 'hover', 'killPick', 'diplOpen', 'strikeDone'];
+function saveGame() {
+  const g = Object.fromEntries(Object.entries(G).filter(([k]) => !TRANSIENT.includes(k)));
+  const data = { v: SAVE_VERSION, at: Date.now(), g, cities: Object.fromEntries(CITIES.map((c) => [c.name, c.damage])) };
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch (e) {}
+}
+function loadSave() {
+  try { const d = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); return d && d.v === SAVE_VERSION ? d : null; } catch (e) { return null; }
+}
+function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
+function resumeGame(d) {
+  newGame();
+  Object.assign(G, d.g, { phase: 'between', speed: 1, paused: false });
+  // batteries take their numbers from the current rules, keeping only their own state
+  G.batteries = G.batteries.map((b) => ({ ...b, ...SYSTEMS[b.type], ammo: Math.min(b.ammo, SYSTEMS[b.type].mag) }));
+  for (const c of CITIES) c.damage = d.cities[c.name] || [];
+  syncRel();
+  $('waveNo').textContent = G.wave;
+  say(`המשמרת נמשכת: גל ${G.wave} הושלם`, 'good');
+  showDecision();
+}
+
 function gameOver() {
   G.phase = 'over';
+  clearSave();
   const best = Math.max(+(store.get('idBest') || 0), G.wave - 1);
   store.set('idBest', best);
   $('overTitle').textContent = 'אמון הציבור קרס';
@@ -1885,7 +1916,8 @@ $('diplClose').onclick = closeDipl;
 $('viewIsrael').onclick = () => flyTo(VIEWS.israel());
 $('viewRegion').onclick = () => flyTo(VIEWS.region());
 
-$('startBtn').onclick = () => { initAudio(); $('intro').hidden = true; startWave(); };
+$('startBtn').onclick = () => { initAudio(); clearSave(); $('intro').hidden = true; startWave(); };
+$('resumeBtn').onclick = () => { const d = loadSave(); initAudio(); $('intro').hidden = true; if (d) resumeGame(d); else startWave(); };
 $('againBtn').onclick = () => { $('over').hidden = true; newGame(); flyTo(VIEWS.israel()); startWave(); };
 $('strikeGo').onclick = launchStrikes;
 $('tabAir').onclick = () => setTab('air');
@@ -1900,6 +1932,18 @@ window.addEventListener('resize', resize);
 
 const best = +(store.get('idBest') || 0);
 if (best) $('best').textContent = `השיא שלך: ${best} גלים`;
+const saved = loadSave();
+if (saved) {
+  const when = new Date(saved.at).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' });
+  $('resumeBtn').textContent = `המשך משמרת · גל ${saved.g.wave + 1}`;
+  $('savedAt').textContent = `נשמר ב־${when}`;
+  $('resumeBtn').hidden = false; $('savedAt').hidden = false;
+  // returning players get the continue button first; the instructions fold away
+  $('introHelp').hidden = true; $('helpBtn').hidden = false;
+  $('helpBtn').onclick = () => { $('introHelp').hidden = !$('introHelp').hidden; $('helpBtn').textContent = $('introHelp').hidden ? 'איך משחקים ▾' : 'איך משחקים ▴'; };
+  $('startBtn').textContent = 'משמרת חדשה (מוחקת את השמורה)';
+  $('startBtn').className = 'ghost'; $('startBtn').style.width = '100%';
+}
 newGame();
 resize();
 requestAnimationFrame(frame);
