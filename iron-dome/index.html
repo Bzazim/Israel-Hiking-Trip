@@ -172,6 +172,12 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
 .rel .bar { width: 100%; }
 .rel b { font-weight: 500; text-align: left; font-variant-numeric: tabular-nums; }
 .rel small { grid-column: 1 / -1; color: var(--muted); font-size: 11.5px; margin-top: -2px; }
+button.rel { width: 100%; font: inherit; color: inherit; background: none; border: 0; text-align: start; cursor: pointer; border-radius: 6px; padding: 4px 4px; }
+button.rel:hover, button.rel.open { background: #183029; }
+.opts.diplo { margin: 4px 0 8px; gap: 5px; }
+.opts.diplo .opt { padding: 7px 10px; }
+.opts.diplo .opt b { font-size: 13.5px; }
+.opts.diplo .opt span { font-size: 11.5px; }
 .legend { display: flex; gap: 10px; flex-wrap: wrap; font-size: 11.5px; color: var(--muted); margin: 10px 0 12px; }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: -1px; margin-inline-end: 4px; }
 .tabs { display: flex; gap: 6px; margin: 4px 0 12px; border-bottom: 1px solid var(--line); }
@@ -236,6 +242,9 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
       <span><i style="background:#2F8A5B"></i>ידידותי</span><span><i style="background:#9A7A2A"></i>מתוח</span>
       <span><i style="background:#8A3030"></i>עוין</span><span><i style="background:#3B1416;border:1px solid #6B2A2E"></i>אויב</span>
     </div>
+    <h3>פעולות דיפלומטיות</h3>
+    <div class="avg">לחץ על מדינה כדי לראות מה אפשר לעשות מולה. פעולה אחת מול כל מדינה בכל גל.</div>
+    <div class="opts diplo" id="diplGlobal"></div>
     <h3>מעצמות</h3>
     <div id="diplPowers"></div>
     <h3>באזור</h3>
@@ -386,6 +395,7 @@ const CITIES = [
   ['אילת', 29.56, 34.95, 2.5, 5]
 ].map(([name, a, b, r, w]) => ({ name, ...km(a, b), r, w, damage: [], alert: 0 }));
 const REBUILD = 3; // waves until a hit site is rebuilt
+const REBUILD_COST = 6; // $M per site for accelerated rebuilding (double in the big cities)
 const city = (n) => CITIES.find((c) => c.name === n);
 
 // ---------- foreign relations ----------
@@ -408,6 +418,34 @@ const PARTNERS = {
   gr: { name: 'יוון', w: .5, start: 65, map: 'gr' }
 };
 const ENEMY_MAP = { lb: 'lebanon', sy: 'syria', iq: 'iraq', ye: 'yemen', ir: 'iran' };
+
+// Diplomatic moves. Every partner has the general ones plus one of its own; each partner once per wave.
+// cost in $M; fx is applied with applyFx (relTo, rel, econ, det, trust, budget ...).
+const DIPLO_COMMON = [
+  { label: 'ביקור מדיני', hint: '+4', cost: 2, fx: (k) => ({ relTo: { [k]: 4 } }) },
+  { label: 'חבילת סיוע', hint: '+8', cost: 10, fx: (k) => ({ relTo: { [k]: 8 } }) },
+  { label: 'הסכם סחר', hint: '+5 · כלכלה +2', cost: 4, need: 30, fx: (k) => ({ relTo: { [k]: 5 }, econ: 2 }) }
+];
+const DIPLO_SPECIAL = {
+  us: { label: 'לובי בקונגרס', hint: '+6', cost: 5, fx: { relTo: { us: 6 } } },
+  uk: { label: 'שיתוף פעולה בסייבר', hint: '+7', cost: 3, fx: { relTo: { uk: 7 } } },
+  fr: { label: 'יוזמה משותפת ללבנון', hint: '+8 · הרתעה −2', cost: 3, fx: { relTo: { fr: 8 }, det: -2 } },
+  de: { label: 'הסכם מחקר ופיתוח', hint: '+7 · כלכלה +1', cost: 4, fx: { relTo: { de: 7 }, econ: 1 } },
+  ru: { label: 'תיאום בשמי סוריה', hint: '+8 · ארה״ב −2', cost: 0, fx: { relTo: { ru: 8, us: -2 } } },
+  cn: { label: 'פרויקט תשתיות סיני', hint: '+9 · כלכלה +2 · ארה״ב −4', cost: 0, fx: { relTo: { cn: 9, us: -4 }, econ: 2 } },
+  eg: { label: 'הגדלת יצוא הגז למצרים', hint: '+9 · כלכלה +2', cost: 0, need: 20, fx: { relTo: { eg: 9 }, econ: 2 } },
+  jo: { label: 'הגדלת אספקת המים לירדן', hint: '+10', cost: 5, fx: { relTo: { jo: 10 } } },
+  sa: { label: 'קידום נורמליזציה', hint: '+10 · האמירויות +3 · טורקיה −3 · אמון −2', cost: 0, need: 45, fx: { relTo: { sa: 10, ae: 3, tr: -3 }, trust: -2 } },
+  ae: { label: 'קרן השקעות משותפת', hint: '+7 · כלכלה +3', cost: 5, fx: { relTo: { ae: 7 }, econ: 3 } },
+  bh: { label: 'מרכז אבטחה ימית משותף', hint: '+8', cost: 3, fx: { relTo: { bh: 8 } } },
+  qa: { label: 'ערוץ תיווך דרך דוחה', hint: '+9 · הרתעה −3', cost: 0, fx: { relTo: { qa: 9 }, det: -3 } },
+  tr: { label: 'חידוש קשרים כלכליים', hint: '+9 · קפריסין ויוון −3', cost: 0, fx: { relTo: { tr: 9, cy: -3, gr: -3 }, econ: 1 } },
+  cy: { label: 'צינור גז משותף', hint: '+8 · יוון +3 · טורקיה −3', cost: 6, fx: { relTo: { cy: 8, gr: 3, tr: -3 }, econ: 1 } },
+  gr: { label: 'תרגיל אווירי משותף', hint: '+8 · טורקיה −2', cost: 2, fx: { relTo: { gr: 8, tr: -2 } } }
+};
+// once per wave, for everyone at once
+const DIPLO_GLOBAL = { label: 'סיוע הומניטרי לאזרחי עזה', hint: 'אירופה +4-5 · מצרים, ירדן +5 · קטר, טורקיה +4 · סעודיה, האמירויות +3 · אמון −2 · הרתעה −3', cost: 8,
+  fx: { relTo: { fr: 5, uk: 4, de: 4, eg: 5, jo: 5, qa: 4, tr: 4, sa: 3, ae: 3, cn: 2 }, trust: -2, det: -3 } };
 
 // ---------- countries Israel fights ----------
 // state: a sovereign state with an air force and air defences; only these can shoot down Israeli aircraft.
@@ -507,6 +545,9 @@ const BATTERY_SITES = {
   jlm: ['ירושלים', 31.80, 35.12], bs: ['באר שבע', 31.27, 34.86], ks: ['קריית שמונה', 33.17, 35.52],
   sharon: ['השרון', 32.25, 34.93], dimona: ['דימונה', 31.10, 35.09], golan: ['רמת הגולן', 32.98, 35.74],
   arrow4: ['חץ ירושלים', 31.74, 35.08, 'arrow'], sling4: ['קלע דוד גליל', 32.98, 35.42, 'sling'],
+  beam1: ['קרן אור עוטף עזה', 31.51, 34.60, 'laser'], beam2: ['קרן אור גבול הצפון', 33.12, 35.47, 'laser'],
+  beam3: ['קרן אור גוש דן', 32.06, 34.80, 'laser'], beam4: ['קרן אור חיפה', 32.80, 35.04, 'laser'],
+  beam5: ['קרן אור אשקלון', 31.66, 34.60, 'laser'], beam6: ['קרן אור אילת', 29.57, 34.97, 'laser'],
   arrow: ['חץ מרכז', 31.88, 35.00, 'arrow'], arrow2: ['חץ נגב', 30.95, 34.90, 'arrow'], arrow3: ['חץ צפון', 32.45, 35.05, 'arrow'],
   sling: ['קלע דוד צפון', 32.68, 35.22, 'sling'], sling2: ['קלע דוד מרכז', 31.70, 34.98, 'sling'], sling3: ['קלע דוד דרום', 30.60, 34.80, 'sling']
 };
@@ -515,16 +556,19 @@ const BATTERY_SITES = {
 const SYSTEMS = {
   dome: { range: 40, mag: 8, reload: 4, v: 5, cost: 50, stock: 'reserve', pk: { rocket: 0.9, uav: 0.88 } },
   sling: { range: 200, mag: 6, reload: 6, v: 10, cost: 1000, stock: 'stunners', pk: { heavy: 0.9, ballistic: 0.65, uav: 0.85 } },
-  arrow: { range: 420, mag: 6, reload: 8, v: 22, cost: 3000, stock: 'arrows', pk: { ballistic: 0.92 } }
+  arrow: { range: 420, mag: 6, reload: 8, v: 22, cost: 3000, stock: 'arrows', pk: { ballistic: 0.92 } },
+  // Iron Beam: a laser. Short range, one target at a time, but every shot is practically free.
+  laser: { range: 10, mag: 1, reload: 2.5, v: 300, cost: 0, stock: null, pk: { rocket: 0.85, uav: 0.9 } }
 };
 const canEngage = (b, th) => th.kind in b.pk;
 // procurement prices, $M
 const SHOP = {
   dome: { name: 'כיפת ברזל', pack: 10, packCost: 1, battery: 40, what: 'רקטות וכטב״מים' },
   sling: { name: 'קלע דוד', pack: 4, packCost: 4, battery: 90, what: 'טילים כבדים, שיוט, כטב״מים וגם בליסטיים' },
-  arrow: { name: 'חץ', pack: 2, packCost: 6, battery: 150, what: 'טילים בליסטיים' }
+  arrow: { name: 'חץ', pack: 2, packCost: 6, battery: 150, what: 'טילים בליסטיים' },
+  laser: { name: 'קרן אור (אור איתן)', battery: 220, fromWave: 5, what: 'לייזר ליירוט רקטות וכטב״מים בטווח קצר (10 ק״מ). אין צורך במיירטים: כל ירי כמעט בחינם, ירי אחד בכל פעם' }
 };
-const SYS_RGB = { dome: '79, 209, 232', sling: '253, 186, 116', arrow: '196, 181, 253' };
+const SYS_RGB = { dome: '79, 209, 232', sling: '253, 186, 116', arrow: '196, 181, 253', laser: '134, 239, 172' };
 const KIND_NAME = { rocket: 'רקטה', uav: 'כטב״ם', heavy: 'טיל כבד/שיוט', ballistic: 'טיל בליסטי' };
 
 // ---------- helpers ----------
@@ -574,6 +618,9 @@ const SFX = {
   impact: () => { burst({ dur: 2.4, vol: 0.55, type: 'lowpass', f0: 900, f1: 60, attack: 0.005 }); thump(50, 1.2, 0.5); },
   open: () => burst({ dur: 1.2, vol: 0.12, type: 'lowpass', f0: 600, f1: 80, attack: 0.01 }),
   denied: () => thump(160, 0.15, 0.12),
+  laser: () => { if (!audio || !settings.sfx) return; const t = audio.currentTime, o = audio.createOscillator(), g = audio.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(2400, t); o.frequency.exponentialRampToValueAtTime(900, t + 0.5);
+    g.gain.setValueAtTime(0.08, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5); o.connect(g).connect(master); o.start(t); o.stop(t + 0.5); },
   jet: () => burst({ dur: 2.6, vol: 0.25, f0: 200, f1: 1400, q: 0.6, attack: 0.8 })
 };
 
@@ -622,7 +669,7 @@ function newGame() {
     p: Object.fromEntries(Object.entries(PARTNERS).map(([k, v]) => [k, v.start])),
     fleet: Object.fromEntries(Object.entries(AIRCRAFT).map(([k, a]) => [k, a.count])),
     c: Object.fromEntries(Object.keys(COUNTRIES).map((k) => [k, { active: 0, sup: 1, struck: 0, plan: [], now: 0, recent: 0 }])),
-    lead: {}, coal: {}, killPick: null, alliedKills: 0, kills2: 0,
+    lead: {}, coal: {}, diplUsed: {}, diplOpen: null, killPick: null, alliedKills: 0, kills2: 0,
     batteries: ['sderot', 'ashdod', 'dan', 'haifa', 'galil', 'eilat', 'arrow', 'arrow2', 'sling', 'sling2'].map(addBattery)
   };
   syncRel();
@@ -749,7 +796,9 @@ function engage(th) {
     if (!sol) continue;
     any = true;
     if (b.ammo < 1) continue;
-    if (!best || sol.t < best.sol.t) best = { b, sol };
+    // a free laser shot beats spending an interceptor; otherwise take the earliest intercept
+    const better = !best || (b.type === 'laser') !== (best.b.type === 'laser') ? b.type === 'laser' || !best : sol.t < best.sol.t;
+    if (better) best = { b, sol };
   }
   if (!best) {
     const sys = { ballistic: 'חץ וקלע דוד', heavy: 'קלע דוד', uav: 'כיפת ברזל או קלע דוד' }[th.kind] || 'כיפת ברזל';
@@ -761,7 +810,8 @@ function engage(th) {
   th.locks++;
   G.fired++; G.cost += b.cost;
   G.ints.push({ from: { x: b.x, y: b.y }, p: sol.p, t0: G.t, t1: sol.t, th, kill: Math.random() < b.pk[th.kind], sys: b.type, trail: [] });
-  (b.type === 'dome' ? SFX.interceptor : SFX.arrow)();
+  if (b.type === 'laser') { G.fx.push({ kind: 'beam', x: sol.p.x, y: sol.p.y, bx: b.x, by: b.y, t: 0 }); SFX.laser(); }
+  else (b.type === 'dome' ? SFX.interceptor : SFX.arrow)();
 }
 
 // ---------- update ----------
@@ -773,10 +823,10 @@ function update(dt) {
 
   for (const b of G.batteries) {
     b.flash = Math.max(0, b.flash - dt * 2);
-    const stock = b.stock;
-    if (b.ammo < b.mag && G[stock] > 0) {
+    const stock = b.stock; // the laser has no stock: it just recharges
+    if (b.ammo < b.mag && (!stock || G[stock] > 0)) {
       b.reloadT -= dt;
-      if (b.reloadT <= 0) { b.ammo++; G[stock]--; b.reloadT = b.ammo < b.mag ? b.reload : 0; }
+      if (b.reloadT <= 0) { b.ammo++; if (stock) G[stock]--; b.reloadT = b.ammo < b.mag ? b.reload : 0; }
     }
   }
 
@@ -840,11 +890,11 @@ function update(dt) {
 }
 function stepFx(dt) {
   G.fx.forEach((f) => (f.t += dt));
-  G.fx = G.fx.filter((f) => f.t < (f.kind === 'hit' ? 4 : 1.5));
+  G.fx = G.fx.filter((f) => f.t < (f.kind === 'hit' ? 4 : f.kind === 'beam' ? 0.6 : 1.5));
 }
 
 function endWave() {
-  G.phase = 'between';
+  G.phase = 'between'; G.fx = [];
   // allies resupply according to how they see Israel right now
   const us = G.p.us >= 30 ? Math.round(G.p.us / 7) : 0;
   const eu = (G.p.uk + G.p.fr + G.p.de) / 3 >= 40 ? 3 : 0;
@@ -1221,17 +1271,40 @@ const relColor = (v) => v >= 60 ? '#2F8A5B' : v >= 45 ? '#5E8A3A' : v >= 30 ? '#
 function renderDipl() {
   $('diplAvg').textContent = `ציון משוקלל: ${G.rel} מתוך 100`;
   const row = (k) => {
-    const p = PARTNERS[k], v = G.p[k], d = document.createElement('div');
-    d.className = 'rel';
+    const p = PARTNERS[k], v = G.p[k], wrap = document.createElement('div'), d = document.createElement('button');
+    d.className = 'rel' + (G.diplOpen === k ? ' open' : '');
     d.innerHTML = '<span></span><span class="bar"><i></i></span><b></b>' + (p.note ? '<small></small>' : '');
-    d.querySelector('span').textContent = p.name;
+    d.querySelector('span').textContent = (G.diplOpen === k ? '▾ ' : '▸ ') + p.name;
     d.querySelector('i').style.width = v + '%'; d.querySelector('i').style.background = relColor(v);
     d.querySelector('b').textContent = v;
     if (p.note) d.querySelector('small').textContent = p.note;
-    return d;
+    d.onclick = () => { G.diplOpen = G.diplOpen === k ? null : k; renderDipl(); };
+    wrap.appendChild(d);
+    if (G.diplOpen === k) wrap.appendChild(diploActions(k));
+    return wrap;
   };
+  const g = $('diplGlobal'); g.innerHTML = '';
+  g.appendChild(diploButton(DIPLO_GLOBAL, '_gaza', DIPLO_GLOBAL.fx));
   $('diplPowers').replaceChildren(...['us', 'uk', 'fr', 'de', 'ru', 'cn'].map(row));
   $('diplRegion').replaceChildren(...Object.keys(PARTNERS).filter((k) => PARTNERS[k].map).sort((a, b) => G.p[b] - G.p[a]).map(row));
+}
+// one button for a diplomatic move; key = who it's used up for this wave
+function diploButton(a, key, fx, k) {
+  const used = G.diplUsed[key] === G.wave, low = a.need && G.p[k] < a.need;
+  const b = optButton(`${a.label}${a.cost ? ` · $${a.cost}M` : ''}`, used ? 'כבר בוצע פעולה מולה בגל הזה' : low ? `דרוש לפחות ${a.need} ביחסים` : a.hint, () => {
+    G.budget -= a.cost; G.spent += a.cost; G.diplUsed[key] = G.wave;
+    applyFx(Object.assign({}, fx, { shelter: G.shelter }));
+    say(`${a.label}${k ? ` (${PARTNERS[k].name})` : ''}: בוצע`, 'good');
+    renderDipl();
+  });
+  b.disabled = used || low || G.budget < a.cost;
+  return b;
+}
+function diploActions(k) {
+  const box = document.createElement('div');
+  box.className = 'opts diplo';
+  for (const a of [...DIPLO_COMMON, DIPLO_SPECIAL[k]].filter(Boolean)) box.appendChild(diploButton(a, k, typeof a.fx === 'function' ? a.fx(k) : a.fx, k));
+  return box;
 }
 function renderShop() {
   $('shopBudget').textContent = `תקציב: $${Math.round(G.budget)}M · כלכלה ${Math.round(G.econ)} · הוצאות עד כה $${Math.round(G.spent)}M`;
@@ -1239,13 +1312,20 @@ function renderShop() {
   for (const [type, it] of Object.entries(SHOP)) {
     const stock = SYSTEMS[type].stock, d = document.createElement('div');
     d.className = 'coal';
+    if (it.fromWave && G.wave < it.fromWave) {
+      d.innerHTML = '<b></b><p></p><small></small>';
+      d.querySelector('b').textContent = it.name; d.querySelector('p').textContent = it.what;
+      d.querySelector('small').textContent = `בפיתוח ברפא״ל · זמין מגל ${it.fromWave} · $${it.battery}M לסוללה`;
+      box.appendChild(d); continue;
+    }
     const free = Object.entries(BATTERY_SITES).filter(([id, v]) => (v[3] || 'dome') === type && !G.batteries.some((b) => b.id === id));
     d.innerHTML = `<b></b><p></p>
       <div class="buy"><span>מלאי מיירטים, משותף לכל הסוללות</span><button data-k="pack"></button></div>
       <div class="buy"><span>סוללה חדשה</span><select></select><button data-k="bat"></button></div>`;
-    d.querySelector('b').textContent = `${it.name} · ${G.batteries.filter((b) => b.type === type).length} סוללות · ${G[stock]} מיירטים במלאי`;
-    d.querySelector('p').textContent = `מיירט ל${it.what}`;
-    const pack = d.querySelector('[data-k=pack]'), bat = d.querySelector('[data-k=bat]'), sel = d.querySelector('select');
+    d.querySelector('b').textContent = `${it.name} · ${G.batteries.filter((b) => b.type === type).length} סוללות` + (stock ? ` · ${G[stock]} מיירטים במלאי` : '');
+    d.querySelector('p').textContent = stock ? `מיירט ל${it.what}` : it.what;
+    if (!stock) d.querySelector('.buy').remove();
+    const pack = d.querySelector('[data-k=pack]') || {}, bat = d.querySelector('[data-k=bat]'), sel = d.querySelector('select');
     pack.textContent = `+${it.pack} מיירטים · $${it.packCost}M`;
     pack.disabled = G.budget < it.packCost;
     pack.onclick = () => { G.budget -= it.packCost; G.spent += it.packCost; G[stock] += it.pack; renderShop(); };
@@ -1256,6 +1336,26 @@ function renderShop() {
     bat.onclick = () => { G.budget -= it.battery; G.spent += it.battery; G.batteries.push(addBattery(sel.value)); say(`נפרסה סוללה חדשה: ${BATTERY_SITES[sel.value][0]}`, 'good'); renderShop(); };
     box.appendChild(d);
   }
+  // accelerated rebuilding of hit sites
+  const ruins = CITIES.filter((c) => c.damage.length), d = document.createElement('div');
+  d.className = 'coal';
+  d.innerHTML = `<b>שיקום מואץ</b><p>שיקום מיידי של אתרים שנפגעו, במקום לחכות ${REBUILD} גלים. כל אתר: אמון +1 · כלכלה +1.5</p>`;
+  if (!ruins.length) d.insertAdjacentHTML('beforeend', '<small>אין כרגע אתרים פגועים</small>');
+  for (const c of ruins) {
+    const price = REBUILD_COST * c.damage.length * (c.w >= 7 ? 2 : 1), row = document.createElement('div');
+    row.className = 'buy';
+    row.innerHTML = '<button></button>';
+    const btn = row.querySelector('button');
+    btn.textContent = `${c.name} · ${c.damage.length} אתרים · $${price}M`;
+    btn.disabled = G.budget < price;
+    btn.onclick = () => {
+      G.budget -= price; G.spent += price;
+      G.trust = Math.min(100, G.trust + c.damage.length); G.econ = Math.min(100, G.econ + 1.5 * c.damage.length);
+      c.damage = []; say(`שיקום מואץ הושלם ב${c.name}`, 'good'); renderShop();
+    };
+    d.appendChild(row);
+  }
+  box.appendChild(d);
 }
 function openShop() {
   if (G.phase === 'intro' || G.phase === 'strike') return;
@@ -1503,10 +1603,10 @@ function draw(now) {
   const detail = view.s > 0.7;
   // battery coverage
   if (detail && !G.dipl) for (const b of G.batteries) {
-    if (b.type !== 'dome') continue;
+    if (b.type !== 'dome' && b.type !== 'laser') continue;
     ctx.beginPath(); ctx.arc(sx(b.x), sy(b.y), b.range * view.s, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(79, 209, 232, .025)'; ctx.fill();
-    ctx.setLineDash([2, 5]); ctx.strokeStyle = 'rgba(79, 209, 232, .18)'; ctx.lineWidth = 1; ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = `rgba(${SYS_RGB[b.type]}, ${b.type === 'laser' ? 0.06 : 0.025})`; ctx.fill();
+    ctx.setLineDash([2, 5]); ctx.strokeStyle = `rgba(${SYS_RGB[b.type]}, ${b.type === 'laser' ? 0.4 : 0.18})`; ctx.lineWidth = 1; ctx.stroke(); ctx.setLineDash([]);
   }
 
   // cities
@@ -1586,9 +1686,10 @@ function draw(now) {
     ctx.beginPath();
     if (b.type === 'arrow') { ctx.moveTo(x, y - 8); ctx.lineTo(x + 6, y); ctx.lineTo(x, y + 8); ctx.lineTo(x - 6, y); }
     else if (b.type === 'sling') { ctx.rect(x - 6, y - 6, 12, 12); }
+    else if (b.type === 'laser') { ctx.arc(x, y, 6, 0, Math.PI * 2); }
     else { ctx.moveTo(x, y - 7); ctx.lineTo(x + 6.5, y + 5); ctx.lineTo(x - 6.5, y + 5); }
     ctx.closePath(); ctx.fill();
-    const w = dome ? 3 : 5, gap = 1.5, total = b.mag * (w + gap) - gap;
+    const w = dome ? 3 : b.type === 'laser' ? 14 : 5, gap = 1.5, total = b.mag * (w + gap) - gap;
     for (let i = 0; i < b.mag; i++) {
       ctx.fillStyle = i < b.ammo ? on : off;
       ctx.fillRect(x - total / 2 + i * (w + gap), y + 10, w, 5);
@@ -1618,7 +1719,11 @@ function draw(now) {
   // effects
   for (const f of G.fx) {
     const x = sx(f.x), y = sy(f.y);
-    if (f.kind === 'kill') {
+    if (f.kind === 'beam') {
+      const k = Math.min(1, f.t / 0.6);
+      ctx.strokeStyle = `rgba(190, 255, 200, ${1 - k})`; ctx.lineWidth = 3 * (1 - k) + 0.5;
+      ctx.beginPath(); ctx.moveTo(sx(f.bx), sy(f.by)); ctx.lineTo(x, y); ctx.stroke();
+    } else if (f.kind === 'kill') {
       const k = f.t / 1.5;
       ctx.beginPath(); ctx.arc(x, y, 4 + k * 18, 0, Math.PI * 2); ctx.strokeStyle = `rgba(255, 240, 180, ${1 - k})`; ctx.lineWidth = 2; ctx.stroke();
       ctx.beginPath(); ctx.arc(x, y, 6 * (1 - k), 0, Math.PI * 2); ctx.fillStyle = `rgba(255, 255, 255, ${1 - k})`; ctx.fill();
