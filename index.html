@@ -683,6 +683,22 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     rotate: ROT_LIB, rotateControl: false, touchRotate: ROT_LIB, shiftKeyRotate: ROT_LIB, bearing: 0
   });
   const canRotate = ROT_LIB && !!map._rotate && L.Browser.any3d;
+  // leaflet-rotate redraws line layers (routes, measurements, trails) whenever the map turns. A two-finger
+  // pinch nearly always turns it a little, and that redraw mixed the pinch's new zoom with lines still drawn
+  // for the old one, so lines slid away until the fingers lifted. Skip it while a pinch or zoom is under way:
+  // the pane itself turns with the map, and the redraw at the end of the gesture puts everything in place.
+  // Patched before any line layer is added, since each renderer reads its events when added.
+  if (canRotate) {
+    const rendererEvents = L.Renderer.prototype.getEvents;
+    L.Renderer.include({
+      getEvents() { return L.extend(rendererEvents.call(this), { rotate: this._onMapRotate }); },
+      _onMapRotate() {
+        const m = this._map, g = m.touchGestures;
+        if (m._animatingZoom || (g && g._zooming)) return;
+        this._update();
+      }
+    });
+  }
   // Panes that turn with the map go in the rotating pane; marker panes stay upright.
   const addPane = (name, z, upright) => {
     const parent = canRotate ? map.getPane(upright ? 'norotatePane' : 'rotatePane') : undefined;
