@@ -679,10 +679,19 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
   // leaflet-rotate adds map rotation; without it the map simply stays north-up.
   const ROT_LIB = typeof L.Map.prototype.setBearing === 'function';
   const map = L.map('map', {
-    zoomControl: false, attributionControl: false, minZoom: 7, maxZoom: 19, maxBounds: LIMITS, maxBoundsViscosity: 1,
+    zoomControl: false, attributionControl: false, minZoom: 7, maxZoom: 19,
     rotate: ROT_LIB, rotateControl: false, touchRotate: ROT_LIB, shiftKeyRotate: ROT_LIB, bearing: 0
   });
   const canRotate = ROT_LIB && !!map._rotate && L.Browser.any3d;
+  // Keep the map over Israel. Leaflet's own maxBounds limit breaks on a rotated map: after a pinch, the next
+  // drag could throw the view tens of kilometres away, again and again. So the centre is brought back
+  // inside the area after each move instead.
+  map.on('moveend', () => {
+    const c = map.getCenter();
+    if (LIMITS.contains(c)) return;
+    const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
+    map.panTo([clamp(c.lat, LIMITS.getSouth(), LIMITS.getNorth()), clamp(c.lng, LIMITS.getWest(), LIMITS.getEast())]);
+  });
   // leaflet-rotate redraws line layers (routes, measurements, trails) whenever the map turns. A two-finger
   // pinch nearly always turns it a little, and that redraw mixed the pinch's new zoom with lines still drawn
   // for the old one, so lines slid away until the fingers lifted. Skip it while a pinch or zoom is under way:
