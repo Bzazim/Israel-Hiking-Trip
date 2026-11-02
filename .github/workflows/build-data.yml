@@ -1,4 +1,4 @@
-# Builds the trail, dirt road, place-name and route-finder data that ships with the app (data/),
+# Builds the trail, dirt road, place-name, route-finder and viewpoint data that ships with the app (data/),
 # from the latest OpenStreetMap extract of Israel, and commits it to the branch it ran on.
 name: Build map data
 

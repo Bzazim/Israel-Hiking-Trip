@@ -27,6 +27,7 @@
   --blaze-red: #C62E2E;
   --blaze-blue: #1F5FA8;
   --route: #E8590C;
+  --vp: #12808F;
   --az: #B0287A;
   --map-bg: #CFD6CC;
   --mask: #E6E9E2;
@@ -43,6 +44,7 @@
     --on-olive: #1B211E;
     --chip-bg: #262E2A;
     --az: #E06AB0;
+    --vp: #3FB6C4;
     --map-bg: #2A302C;
     --mask: #1B211E;
     --shadow: 0 -6px 24px rgba(0, 0, 0, .5);
@@ -51,7 +53,7 @@
 }
 :root[data-theme="dark"] {
   --ink: #E9ECE6; --muted: #A3ACA5; --panel: #1B211E; --line: #343D38; --olive: #A7B86E;
-  --on-olive: #1B211E; --chip-bg: #262E2A; --az: #E06AB0; --map-bg: #2A302C; --mask: #1B211E; color-scheme: dark;
+  --on-olive: #1B211E; --chip-bg: #262E2A; --az: #E06AB0; --vp: #3FB6C4; --map-bg: #2A302C; --mask: #1B211E; color-scheme: dark;
 }
 [hidden] { display: none !important; }
 html, body { height: 100%; margin: 0; }
@@ -308,6 +310,28 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
 a.btn { display: block; text-align: center; text-decoration: none; }
 .facts dd.lvl-1 { color: #2E8048; }
 .facts dd.lvl-3, .facts dd.lvl-4 { color: var(--blaze-red); }
+.find-mode { margin-bottom: 4px; }
+.inline-link { border: 0; background: none; padding: 0; color: var(--olive); font: inherit; font-weight: 500; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+/* Viewpoints: a teal ring with a dot, on the map and in lists */
+.vp-dot { position: relative; flex: none; width: 16px; height: 16px; box-sizing: border-box; border-radius: 50%; background: #fff; border: 2.5px solid var(--vp); }
+.vp-dot::after { content: ""; position: absolute; inset: 2.5px; border-radius: 50%; background: var(--vp); }
+.vp-dot.sm { width: 13px; height: 13px; border-width: 2px; }
+.vp-dot.sm::after { inset: 2px; }
+.chip[aria-pressed="false"] .vp-dot { opacity: .4; }
+.rt .vp-dot { margin-top: 3px; }
+.vp-ic { background: none; border: 0; }
+.vp-ic div { width: 18px; height: 18px; box-sizing: border-box; border-radius: 50%; background: #fff; border: 3px solid #12808F; box-shadow: 0 1px 4px rgba(0, 0, 0, .4); display: grid; place-items: center; }
+.vp-ic div::after { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #12808F; }
+.vd-view { display: flex; align-items: center; gap: 14px; margin-top: 12px; }
+.vd-compass { width: 140px; height: 140px; flex: none; }
+.vd-sentence { margin: 0; font-size: 14.5px; line-height: 1.5; }
+.cp-ring { fill: none; stroke: var(--line); stroke-width: 1; }
+.cp-area { fill: var(--vp); fill-opacity: .3; stroke: var(--vp); stroke-width: 1.5; stroke-linejoin: round; }
+.cp-sun { fill: none; stroke-width: 5; stroke-linecap: round; }
+.cp-sunset { stroke: #E8590C; }
+.cp-sunrise { stroke: #E0A800; }
+.cp-lbl { font: 600 11px "Rubik", sans-serif; fill: var(--ink); text-anchor: middle; dominant-baseline: central; }
+.cp-km { font: 9px "Rubik", sans-serif; fill: var(--muted); text-anchor: middle; }
 .pop-link { display: block; margin-top: 8px; border: 0; background: none; padding: 2px 0; color: #56662F; font: 500 14px "Rubik", sans-serif; cursor: pointer; }
 
 .banner {
@@ -402,11 +426,13 @@ a.btn { display: block; text-align: center; text-decoration: none; }
       <div class="row chips" id="chips-trails">
         <button type="button" class="chip" data-overlay="hiking"><span class="blaze" style="--c: var(--blaze-red)"></span>שבילים מסומנים</button>
         <button type="button" class="chip" data-overlay="mtb"><span class="blaze" style="--c: var(--blaze-blue)"></span>שבילי אופניים</button>
+        <button type="button" class="chip" data-overlay="views"><span class="vp-dot sm" aria-hidden="true"></span>תצפיות</button>
       </div>
       <div class="row chips" id="chips-topo" hidden>
         <button type="button" class="chip" data-overlay="places"><span class="ic ic-place"></span>שמות יישובים</button>
         <button type="button" class="chip" data-overlay="roads"><span class="ic ic-road"></span>כבישים</button>
         <button type="button" class="chip" data-overlay="tracks"><span class="ic ic-track"></span>דרכי עפר ושבילים</button>
+        <button type="button" class="chip" data-overlay="views"><span class="vp-dot sm" aria-hidden="true"></span>תצפיות</button>
       </div>
       <p class="hint" id="trail-status" hidden></p>
     </section>
@@ -506,6 +532,10 @@ a.btn { display: block; text-align: center; text-decoration: none; }
     </section>
 
     <section data-view="find" hidden>
+      <div class="seg find-mode" role="group" aria-label="מה לחפש" id="f-mode">
+        <button type="button" data-v="routes">מסלולים</button>
+        <button type="button" data-v="views">תצפיות</button>
+      </div>
       <div id="find-form">
         <div class="seg" role="group" aria-label="סוג מסלול" id="f-kind">
           <button type="button" data-v="h">הליכה</button>
@@ -534,6 +564,7 @@ a.btn { display: block; text-align: center; text-decoration: none; }
           <button type="button" class="chip" data-v="water">💧 מים בדרך</button>
           <button type="button" class="chip" data-v="family">למשפחות</button>
           <button type="button" class="chip" data-v="car">התחלה ליד כביש</button>
+          <button type="button" class="chip" data-v="view">🔭 עם תצפית</button>
         </div>
         <div class="actions">
           <button type="button" class="btn primary" id="f-go">מצא מסלולים</button>
@@ -576,6 +607,67 @@ a.btn { display: block; text-align: center; text-decoration: none; }
         </div>
         <p class="hint">הנתונים מחושבים אוטומטית ממפת OpenStreetMap וממודל גובה, והזמן והקושי משוערים. כדאי לבדוק את המסלול ואת מזג האוויר לפני היציאה.</p>
       </div>
+
+      <div id="vf-form" hidden>
+        <label class="field">איפה<select id="v-where"></select></label>
+        <label class="field" id="v-radius-row" hidden>עד מרחק<select id="v-radius"></select></label>
+        <div class="f-label">איך מגיעים</div>
+        <div class="seg" role="group" aria-label="איך מגיעים" id="v-access">
+          <button type="button" data-v="">לא משנה</button>
+          <button type="button" data-v="car">ברכב עד התצפית</button>
+          <button type="button" data-v="walk">עד הליכה קצרה</button>
+        </div>
+        <div class="f-label">מתי</div>
+        <div class="row" id="v-sun">
+          <button type="button" class="chip" data-v="sunset">🌅 שקיעה</button>
+          <button type="button" class="chip" data-v="sunrise">🌄 זריחה</button>
+        </div>
+        <div class="f-label">סוג נוף</div>
+        <div class="row" id="v-land">
+          <button type="button" class="chip" data-v="desert">מדבר</button>
+          <button type="button" class="chip" data-v="makhtesh">מכתש</button>
+          <button type="button" class="chip" data-v="valley">עמק</button>
+          <button type="button" class="chip" data-v="mountains">הרים</button>
+        </div>
+        <label class="field">רואים לפחות עד<select id="v-reach"></select></label>
+        <div class="actions">
+          <button type="button" class="btn primary" id="v-go">מצא תצפיות</button>
+          <button type="button" class="btn f-reset" id="v-reset">איפוס</button>
+        </div>
+        <p class="hint" id="v-status" hidden></p>
+      </div>
+      <div id="vf-results" hidden>
+        <div class="row between"><h2 id="vr-title">תצפיות</h2><button type="button" class="link" id="vr-edit">שינוי ההגדרות</button></div>
+        <p class="hint" id="vr-sub"></p>
+        <ul class="rts" id="vr-list"></ul>
+        <h2 class="fr-near" id="vr-near-title" hidden>כמעט מתאימות</h2>
+        <p class="hint" id="vr-near-sub" hidden>תצפיות ששונות מההגדרות שלך בדבר אחד קטן.</p>
+        <ul class="rts" id="vr-near"></ul>
+        <button type="button" class="btn fr-more" id="vr-more" hidden>עוד תצפיות</button>
+      </div>
+      <div id="vf-detail" hidden>
+        <div class="row between"><span></span><button type="button" class="link" id="vd-back">חזרה לרשימה</button></div>
+        <h2 class="fd-title"><span class="vp-dot" aria-hidden="true"></span><span id="vd-name"></span></h2>
+        <p class="fd-sub" id="vd-sub"></p>
+        <p class="fd-desc" id="vd-desc" hidden></p>
+        <div class="vd-view">
+          <svg class="vd-compass" id="vd-compass" viewBox="0 0 160 160" role="img" aria-labelledby="vd-sentence"></svg>
+          <p class="vd-sentence" id="vd-sentence"></p>
+        </div>
+        <dl class="facts">
+          <div><dt>גובה</dt><dd id="vd-h"></dd></div>
+          <div><dt>רואים עד</dt><dd id="vd-reach"></dd></div>
+          <div><dt>שקיעה</dt><dd id="vd-sunset"></dd></div>
+          <div><dt>זריחה</dt><dd id="vd-sunrise"></dd></div>
+        </dl>
+        <ul class="fd-notes" id="vd-notes"></ul>
+        <div class="actions">
+          <button type="button" class="btn primary" id="vd-show">הצגה במפה</button>
+          <a class="btn" id="vd-waze" target="_blank" rel="noopener">Waze</a>
+          <a class="btn" id="vd-gmaps" target="_blank" rel="noopener">Google Maps</a>
+        </div>
+        <p class="hint">טווח הראייה מחושב ממודל גובה, בלי עצים ובניינים ובלי להתחשב באובך, כך שבפועל הוא לרוב קצר יותר.</p>
+      </div>
     </section>
 
   </div>
@@ -605,9 +697,10 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
 </script>
 
 <!-- What's new: edit the text here and raise data-version, and everyone sees it again, also those who ticked "don't show". -->
-<dialog class="news" id="news" data-version="6" aria-labelledby="news-title">
+<dialog class="news" id="news" data-version="7" aria-labelledby="news-title">
   <h2 id="news-title">מה חדש?</h2>
   <ol>
+    <li>תצפיות: בלשונית מסלולים אפשר לחפש תצפיות לפי שקיעה או זריחה, סוג נוף ואיך מגיעים, ולראות לאן ועד כמה רחוק רואים מכל אחת. התצפיות מסומנות גם על המפה ובדף של כל מסלול</li>
     <li>לשונית מסלולים: בוחרים אורך, זמן, קושי, אזור ועונה, ומקבלים המלצות על שבילים מסומנים עם טיפוס, זמן הליכה ומים בדרך</li>
     <li>בניית ציר הליכה</li>
     <li>מדידת מרחק</li>
@@ -673,7 +766,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
   };
   const settings = Object.assign({
-    map: null, hiking: true, mtb: false, places: true, roads: true, tracks: true,
+    map: null, hiking: true, mtb: false, places: true, roads: true, tracks: true, views: true,
     decl: 5, coordFmt: 'utm', tab: 'map', open: true, view: null
   }, store.get('ihk-settings', {}));
   if (!settings.utm) { settings.coordFmt = 'utm'; settings.utm = true; } // UTM became the default grid
@@ -1142,6 +1235,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     showTrails();
     showTopo();
     applyRotationLock();
+    showViewLayer();
   }
   document.querySelectorAll('[data-map]').forEach((b) => b.addEventListener('click', () => {
     settings.map = b.dataset.map;
@@ -2278,11 +2372,12 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     climb: [['', 'לא משנה'], ['150', 'עד 150 מ׳'], ['300', 'עד 300 מ׳'], ['600', 'עד 600 מ׳'], ['1000', 'עד 1,000 מ׳']],
     season: [['', 'לא משנה'], ['now', 'עכשיו (' + SEASON_NAME[seasonNow()] + ')']].concat(SEASONS)
   };
-  const FIND_DEFAULT = { kind: 'h', where: 'all', radius: '25', len: '', time: '', climb: '', season: '', diff: [], shape: '', water: false, family: false, car: false };
+  const FIND_DEFAULT = { kind: 'h', where: 'all', radius: '25', len: '', time: '', climb: '', season: '', diff: [], shape: '', water: false, family: false, car: false, view: false };
   const F = Object.assign({}, FIND_DEFAULT, settings.find || {});
   const PAGE = 25;
   let routesState = '', routesList = [], routesById = new Map(), myPos = null, locating = false;
   let findView = 'form', found = { full: [], near: [] }, shownCount = PAGE, current = null;
+  let findMode = settings.findMode === 'views' ? 'views' : 'routes';
 
   function fillSelect(id, opts, value) {
     const sel = $(id);
@@ -2324,7 +2419,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     if (routesState === 'done' || routesState === 'loading') return routesState === 'done' ? Promise.resolve() : loadRoutes.p;
     routesState = 'loading';
     renderFindStatus();
-    loadRoutes.p = Promise.all([getData('routes.json'), getData('featured.json').catch(() => ({ hikes: [] }))]).then(([rd, fd]) => {
+    loadRoutes.p = Promise.all([getData('routes.json'), getFeatured()]).then(([rd, fd]) => {
       const feat = new Map();
       (fd.hikes || []).forEach((h) => feat.set(h.osm, h));
       routesList = rd.r.map((r) => {
@@ -2338,17 +2433,22 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     }).catch(() => { routesState = 'failed'; renderFindStatus(); });
     return loadRoutes.p;
   }
+  // data/featured.json: hand-picked hikes ('hikes') and viewpoints ('views').
+  let featuredP = null;
+  const getFeatured = () => featuredP || (featuredP = getData('featured.json').catch(() => ({ hikes: [], views: [] })));
   function openFinder() {
-    loadRoutes();
-    if (F.where === 'me') locateMe();
+    if (findMode === 'views') { loadViews(); if (VF.where === 'me') locateMe(); }
+    else { loadRoutes(); if (F.where === 'me') locateMe(); }
     showFindView(findView);
   }
-  function openRouteById(id) {
+  // back: { label, fn } when opened from another page (a viewpoint), to return there.
+  function openRouteById(id, back) {
     loadRoutes().then(() => {
       const x = routesById.get(id);
       if (!x) { toast('אין פרטים על השביל הזה.'); return; }
+      findMode = 'routes';
       setTab('find', true);
-      showDetail(x, true);
+      showDetail(x, true, back);
     });
   }
   function renderFindStatus() {
@@ -2371,10 +2471,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     const edge = v < lo ? lo : hi;
     return Math.abs(v - edge) <= Math.max(tolAbs, tolRel * edge) ? 1 : 2;
   }
-  function refPoint() {
-    if (F.where === 'me') return myPos;
-    return map.getCenter();
-  }
+  const refPoint = (where) => where === 'me' ? myPos : map.getCenter();
   function evaluate(x, ref, view) {
     if (x.kind !== F.kind) return null;
     if (x.km < 0.8 && !x.f) return null; // bits of trail, not walks
@@ -2398,6 +2495,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     if (F.water && !x.water) check(1, 'בלי מים מסומנים בדרך');
     if (F.family && F.kind === 'h' && !x.family) check(x.diff <= 2 ? 1 : 2, 'פחות מתאים למשפחות');
     if (F.car && !x.car) check(1, 'אין כביש סלול ליד ההתחלה');
+    if (F.view && !(x.r.vp && x.r.vp.length)) check(1, 'בלי תצפית בדרך');
     if (out || why.length > 1) return null;
     // Nearer first; a hand-picked hike counts as if it were nearer.
     const score = (dist == null ? 0 : dist) * (x.f ? 0.5 : 1) + (x.f ? -1 : 0);
@@ -2405,7 +2503,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
   }
   function runMatch() {
     if (routesState !== 'done') return { full: [], near: [] };
-    const ref = refPoint(), view = map.getBounds();
+    const ref = refPoint(F.where), view = map.getBounds();
     const all = routesList.map((x) => evaluate(x, ref, view)).filter(Boolean);
     const by = (a, b) => a.score - b.score;
     return { full: all.filter((m) => !m.why.length).sort(by), near: all.filter((m) => m.why.length).sort(by) };
@@ -2453,16 +2551,13 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     if (fix) { myPos = L.latLng(fix.lat, fix.lng); return; }
     if (locating || !navigator.geolocation) return;
     locating = true;
+    const done = () => { locating = false; renderFindStatus(); refreshCount(); renderViewStatus(); refreshViewCount(); };
     navigator.geolocation.getCurrentPosition((p) => {
-      locating = false;
       myPos = L.latLng(p.coords.latitude, p.coords.longitude);
-      renderFindStatus();
-      refreshCount();
+      done();
     }, () => {
-      locating = false;
       toast('לא הצלחתי לאתר את המיקום שלך. אפשר לבחור אזור במקום.');
-      renderFindStatus();
-      refreshCount();
+      done();
     }, { enableHighAccuracy: false, timeout: 20000, maximumAge: 600000 });
   }
   [['f-where', 'where'], ['f-radius', 'radius'], ['f-len', 'len'], ['f-time', 'time'], ['f-climb', 'climb'], ['f-season', 'season']].forEach(([id, k]) => {
@@ -2486,17 +2581,36 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     showFindView('results');
   });
   // The map moved: "in the map area" and the distances depend on it.
-  map.on('moveend', () => { if (tab === 'find' && sheetOpen && findView === 'form') refreshCount(); });
+  map.on('moveend', () => {
+    if (tab === 'find' && sheetOpen && findView === 'form') { if (findMode === 'views') refreshViewCount(); else refreshCount(); }
+  });
 
   // ---------- Results ----------
+  // Six screens: a form, results and one item's details, for trails and for viewpoints.
   function showFindView(v) {
     findView = v;
-    $('find-form').hidden = v !== 'form';
-    $('find-results').hidden = v !== 'results';
-    $('find-detail').hidden = v !== 'detail';
-    if (v === 'form') { renderForm(); renderFindStatus(); refreshCount(); }
+    const routes = findMode !== 'views';
+    $('find-form').hidden = !(routes && v === 'form');
+    $('find-results').hidden = !(routes && v === 'results');
+    $('find-detail').hidden = !(routes && v === 'detail');
+    $('vf-form').hidden = !(!routes && v === 'form');
+    $('vf-results').hidden = !(!routes && v === 'results');
+    $('vf-detail').hidden = !(!routes && v === 'detail');
+    $('f-mode').hidden = v !== 'form';
+    document.querySelectorAll('#f-mode button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === findMode)));
+    if (v === 'form') {
+      if (routes) { renderForm(); renderFindStatus(); refreshCount(); }
+      else { renderViewForm(); renderViewStatus(); refreshViewCount(); }
+    }
     $('sheet-body').scrollTop = 0;
   }
+  function setFindMode(mode) {
+    findMode = mode;
+    settings.findMode = mode;
+    saveSettings();
+    openFinder();
+  }
+  document.querySelectorAll('#f-mode button').forEach((b) => b.addEventListener('click', () => { if (b.dataset.v !== findMode) { findView = 'form'; setFindMode(b.dataset.v); } }));
   const markColor = (x) => x.r.nat ? MARK.orange[0] : MARK[x.r.m] ? MARK[x.r.m][0] : x.kind === 'm' ? '#1F5FA8' : '#C62E2E';
   function routeItem(m) {
     const x = m.x;
@@ -2582,9 +2696,11 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     current = x;
     map.fitBounds(L.latLngBounds(lines.flat()), { padding: [40, 40], maxZoom: 15 });
   }
-  function showDetail(x, viaPopup) {
+  let fdBack = null;
+  function showDetail(x, viaPopup, back) {
     fromPopup = !!viaPopup;
-    $('fd-back').textContent = fromPopup ? 'לחיפוש מסלולים' : 'חזרה לרשימה';
+    fdBack = back || null;
+    $('fd-back').textContent = back ? back.label : fromPopup ? 'לחיפוש מסלולים' : 'חזרה לרשימה';
     $('fd-blaze').style.setProperty('--c', markColor(x));
     $('fd-name').textContent = x.name;
     const mark = x.r.nat ? 'שביל ישראל' : MARK[x.r.m] ? 'סימון ' + MARK[x.r.m][1] : '';
@@ -2610,14 +2726,18 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     notes.push(x.car ? '🚗 נקודת ההתחלה ליד כביש סלול או חניה' : x.r.car === 2 ? 'הכביש הסלול הקרוב לא בנקודת ההתחלה אלא לאורך השביל' : 'אין כביש סלול ליד נקודת ההתחלה, ייתכן שצריך דרך עפר');
     if (x.shape === 1) notes.push('מסלול קווי: הסוף רחוק מההתחלה, צריך הסעה או חזרה באותה דרך');
     notes.push('עונה מומלצת: ' + x.seasons.map((s) => SEASON_NAME[s]).join(', ') + (x.family ? ' · מתאים למשפחות' : ''));
-    $('fd-notes').replaceChildren(...notes.map((t) => { const li = document.createElement('li'); li.textContent = t; return li; }));
+    if (x.r.vp && x.r.vp.length) notes.push(viewLinks('🔭 תצפיות בדרך: ', x.r.vp, { label: 'חזרה למסלול', fn: () => openRouteById(x.id) }));
+    $('fd-notes').replaceChildren(...notes.map((t) => { const li = document.createElement('li'); li.append(t); return li; }));
     const ll = x.lat.toFixed(5) + ',' + x.lon.toFixed(5);
     $('fd-waze').href = 'https://waze.com/ul?ll=' + ll + '&navigate=yes';
     $('fd-gmaps').href = 'https://www.google.com/maps/dir/?api=1&destination=' + ll;
     current = x;
     showFindView('detail');
   }
-  $('fd-back').addEventListener('click', () => showFindView(fromPopup || !found.full.length && !found.near.length ? 'form' : 'results'));
+  $('fd-back').addEventListener('click', () => {
+    if (fdBack) fdBack.fn();
+    else showFindView(fromPopup || !found.full.length && !found.near.length ? 'form' : 'results');
+  });
   $('fd-show').addEventListener('click', () => { if (current) showOnMap(current); });
   $('fd-gpx').addEventListener('click', async () => {
     if (!current) return;
@@ -2625,6 +2745,404 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     if (!lines.length) { toast('לא הצלחתי לטעון את קו המסלול.'); return; }
     const segs = lines.map((l) => '<trkseg>' + l.map(([a, b]) => '<trkpt lat="' + a.toFixed(5) + '" lon="' + b.toFixed(5) + '"/>').join('') + '</trkseg>').join('\n');
     downloadGpx(x.name, '<wpt lat="' + x.lat.toFixed(5) + '" lon="' + x.lon.toFixed(5) + '"><name>התחלה</name></wpt>\n<trk><name>' + esc(x.name) + '</name>\n' + segs + '\n</trk>');
+  });
+
+  // ---------- Viewpoints (תצפיות) ----------
+  // data/views.json, made by tools/build_data.py: marked viewpoints, and named peaks with a wide view. For each,
+  // the farthest ground in sight in 36 directions (km, from an elevation model), the ground height, the distance to
+  // a paved road or car park, and whether the view takes in flat lowland well below (valley) or high broken land
+  // (mountains). Desert and makhtesh come from where the point is. Sunset and sunrise: whether the view is open
+  // (8 km or more) towards where the sun sets or rises here over the year, 240-300° and 60-120°.
+  const LAND_NAME = { desert: 'מדבר', makhtesh: 'מכתש', valley: 'עמק', mountains: 'הרים' };
+  const ACCESS_SHORT = { car: 'ברכב', walk: 'הליכה קצרה', hike: 'בטיול' };
+  // The three makhteshim as rough ellipses: centre, half-length and half-width (km), direction of the long axis.
+  const MAKHTESH = [[30.60, 34.85, 22, 5, 75], [30.93, 35.02, 5.5, 3, 60], [30.95, 35.22, 3.5, 2.5, 45]];
+  function inMakhtesh(lat, lon) {
+    return MAKHTESH.some(([cy, cx, a, b, deg]) => {
+      const y = (lat - cy) * 111.2, x = (lon - cx) * 111.2 * Math.cos(cy * D2R), t = deg * D2R;
+      const u = x * Math.sin(t) + y * Math.cos(t), v = x * Math.cos(t) - y * Math.sin(t);
+      return (u / (a + 1.5)) ** 2 + (v / (b + 1.5)) ** 2 <= 1; // 1.5 km more, for the viewpoints on the rim
+    });
+  }
+  function inVisibleArea(lat, lon) {
+    let inside = false;
+    for (let i = 0, j = VISIBLE_AREA.length - 1; i < VISIBLE_AREA.length; j = i++) {
+      const [yi, xi] = VISIBLE_AREA[i], [yj, xj] = VISIBLE_AREA[j];
+      if ((yi > lat) !== (yj > lat) && lon < (xj - xi) * (lat - yi) / (yj - yi) + xi) inside = !inside;
+    }
+    return inside;
+  }
+  const reachText = (km) => (km >= 60 ? '\u206660+\u2069' : km) + ' ק״מ'; // the isolate keeps "60+" in order inside Hebrew text
+  const median = (a) => { const b = a.slice().sort((p, q) => p - q); return b[b.length >> 1]; };
+
+  function deriveView(v, f) {
+    const lat = v.s[0] / 1e5, lon = v.s[1] / 1e5, region = regionOf(lat, lon), n = v.v.length;
+    const at = (deg) => v.v[Math.round(((deg % 360) + 360) % 360 / (360 / n)) % n];
+    // 2: open over most of the arc, 1: open in part of it, 0: closed
+    const open = (from, to) => {
+      let ok = 0, all = 0;
+      for (let a = from; a <= to; a += 10) { all++; if (at(a) >= 8) ok++; }
+      return ok >= Math.ceil(all / 2) ? 2 : ok >= 2 ? 1 : 0;
+    };
+    const makh = inMakhtesh(lat, lon);
+    let land = [];
+    if (DESERT.has(region)) land.push('desert');
+    if (makh) land.push('makhtesh');
+    if (v.val && !makh) land.push('valley');
+    if (v.mtn) land.push('mountains');
+    if (f && f.land) land = f.land.slice();
+    const access = v.r != null && v.r <= 200 ? 'car' : v.r != null && v.r <= 1200 ? 'walk' : 'hike';
+    return {
+      v, f, id: v.id, name: (f && f.title) || v.n, lat, lon, region, h: v.h, peak: v.k === 1, guessedName: !!v.nn && !(f && f.title),
+      sunset: open(240, 300), sunrise: open(60, 120), land, access, road: v.r, maxReach: Math.max(...v.v), quality: median(v.v)
+    };
+  }
+
+  const VIEW_DEFAULT = { where: 'all', radius: '25', access: '', sunset: false, sunrise: false, land: [], reach: '' };
+  const VF = Object.assign({}, VIEW_DEFAULT, settings.findViews || {});
+  OPTS.reach = [['', 'לא משנה'], ['10', '10 ק״מ'], ['25', '25 ק״מ'], ['50', '50 ק״מ']];
+  let viewsState = '', viewsList = [], viewsById = new Map();
+  let vFound = { full: [], near: [] }, vShown = PAGE, vCurrent = null, vdBack = null;
+
+  function loadViews() {
+    if (viewsState === 'done') return Promise.resolve();
+    if (viewsState === 'loading') return loadViews.p;
+    viewsState = 'loading';
+    renderViewStatus();
+    loadViews.p = Promise.all([getData('views.json'), getFeatured()]).then(([vd, fd]) => {
+      const feats = fd.views || [], byName = new Map();
+      feats.forEach((f) => { if (f.osm) byName.set(f.osm, f); });
+      // Only the area the map shows (not Gaza, nor across the borders).
+      viewsList = vd.v.filter((v) => inVisibleArea(v.s[0] / 1e5, v.s[1] / 1e5)).map((v) => deriveView(v, (!v.nn && byName.get(v.n)) || null));
+      // A hand-picked viewpoint given by position ('near': [lat, lon]) takes the closest one within 500 m.
+      feats.filter((f) => !f.osm && f.near).forEach((f) => {
+        let best = null, bd = 500;
+        viewsList.forEach((x, i) => { const d = map.distance(f.near, [x.lat, x.lon]); if (!x.f && d < bd) { bd = d; best = i; } });
+        if (best != null) viewsList[best] = deriveView(viewsList[best].v, f);
+      });
+      viewsById = new Map(viewsList.map((x) => [x.id, x]));
+      viewsState = 'done';
+      renderViewStatus();
+      refreshViewCount();
+      drawViewMarkers();
+    }).catch(() => { viewsState = 'failed'; renderViewStatus(); });
+    return loadViews.p;
+  }
+  function renderViewStatus() {
+    const el = $('v-status');
+    let t = '';
+    if (viewsState === 'loading') t = 'טוען את רשימת התצפיות…';
+    else if (viewsState === 'failed') t = 'רשימת התצפיות לא זמינה כרגע. בדוק את החיבור ונסה שוב.';
+    else if (VF.where === 'me' && locating) t = 'מאתר את המיקום שלך…';
+    el.textContent = t;
+    el.hidden = !t;
+  }
+
+  // ---------- Matching viewpoints ----------
+  function evaluateView(x, ref, view) {
+    const dist = ref ? map.distance(ref, [x.lat, x.lon]) / 1000 : null;
+    if (VF.where === 'me' && (dist == null || dist > +VF.radius)) return null;
+    if (VF.where === 'view' && !view.contains([x.lat, x.lon])) return null;
+    if (REGION_NAME[VF.where] && x.region !== VF.where) return null;
+    if (VF.land.length && !VF.land.some((l) => x.land.includes(l))) return null;
+    const why = [];
+    let out = false;
+    const check = (lvl, text) => { if (lvl === 2) out = true; else if (lvl === 1) why.push(text); };
+    const walkText = x.road != null ? 'הליכה של ' + fmtDist(x.road) + ' מהכביש' : 'רחוק מכביש סלול';
+    if (VF.access === 'car' && x.access !== 'car') check(x.access === 'walk' ? 1 : 2, walkText);
+    if (VF.access === 'walk' && x.access === 'hike') check(x.road != null && x.road <= 2500 ? 1 : 2, walkText);
+    if (VF.sunset) check(2 - x.sunset, 'נוף חלקי לשקיעה');
+    if (VF.sunrise) check(2 - x.sunrise, 'נוף חלקי לזריחה');
+    if (VF.reach) check(x.maxReach >= +VF.reach ? 0 : x.maxReach >= +VF.reach * 0.6 ? 1 : 2, 'רואים עד ' + reachText(x.maxReach));
+    if (out || why.length > 1) return null;
+    // Nearer first; hand-picked ones and wide views count as if nearer.
+    const score = (dist == null ? 0 : dist) * (x.f ? 0.5 : 1) - (x.f ? 1 : 0) - x.quality / 20;
+    return { x, why, dist, score };
+  }
+  function runViewMatch() {
+    if (viewsState !== 'done') return { full: [], near: [] };
+    const ref = refPoint(VF.where), view = map.getBounds();
+    const all = viewsList.map((x) => evaluateView(x, ref, view)).filter(Boolean);
+    const by = (a, b) => a.score - b.score;
+    return { full: all.filter((m) => !m.why.length).sort(by), near: all.filter((m) => m.why.length).sort(by) };
+  }
+  function refreshViewCount() {
+    const btn = $('v-go');
+    if (viewsState !== 'done' || (VF.where === 'me' && !myPos)) {
+      btn.textContent = 'מצא תצפיות';
+      btn.disabled = viewsState === 'failed';
+      return;
+    }
+    const m = runViewMatch();
+    btn.disabled = !m.full.length && !m.near.length;
+    btn.textContent = m.full.length ? 'הצגת ' + m.full.length + ' תצפיות'
+      : m.near.length ? 'הצגת ' + m.near.length + ' תצפיות קרובות' : 'אין תצפיות מתאימות';
+  }
+
+  // ---------- Viewpoint form ----------
+  function renderViewForm() {
+    fillSelect('v-where', OPTS.where, VF.where);
+    fillSelect('v-radius', OPTS.radius, VF.radius);
+    fillSelect('v-reach', OPTS.reach, VF.reach);
+    syncViewForm();
+  }
+  function syncViewForm() {
+    document.querySelectorAll('#v-access button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === VF.access)));
+    document.querySelectorAll('#v-sun button').forEach((b) => b.setAttribute('aria-pressed', String(!!VF[b.dataset.v])));
+    document.querySelectorAll('#v-land button').forEach((b) => b.setAttribute('aria-pressed', String(VF.land.includes(b.dataset.v))));
+    $('v-radius-row').hidden = VF.where !== 'me';
+  }
+  function viewChanged() {
+    settings.findViews = VF;
+    saveSettings();
+    syncViewForm();
+    if (VF.where === 'me') locateMe();
+    renderViewStatus();
+    refreshViewCount();
+  }
+  [['v-where', 'where'], ['v-radius', 'radius'], ['v-reach', 'reach']].forEach(([id, k]) => {
+    $(id).addEventListener('change', (e) => { VF[k] = e.target.value; viewChanged(); });
+  });
+  document.querySelectorAll('#v-access button').forEach((b) => b.addEventListener('click', () => { VF.access = b.dataset.v; viewChanged(); }));
+  document.querySelectorAll('#v-sun button').forEach((b) => b.addEventListener('click', () => { VF[b.dataset.v] = !VF[b.dataset.v]; viewChanged(); }));
+  document.querySelectorAll('#v-land button').forEach((b) => b.addEventListener('click', () => {
+    const v = b.dataset.v;
+    VF.land = VF.land.includes(v) ? VF.land.filter((l) => l !== v) : VF.land.concat(v);
+    viewChanged();
+  }));
+  $('v-reset').addEventListener('click', () => { Object.assign(VF, VIEW_DEFAULT, { land: [] }); renderViewForm(); viewChanged(); });
+  $('v-go').addEventListener('click', () => {
+    if (VF.where === 'me' && !myPos) { locateMe(); renderViewStatus(); return; }
+    vFound = runViewMatch();
+    vShown = PAGE;
+    renderViewResults();
+    showFindView('results');
+  });
+
+  // ---------- Viewpoint results ----------
+  function viewItem(m) {
+    const x = m.x;
+    const li = document.createElement('li');
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'rt';
+    const ic = document.createElement('span');
+    ic.className = 'vp-dot';
+    const main = document.createElement('span');
+    main.className = 'rt-main';
+    const name = document.createElement('span');
+    name.className = 'rt-name';
+    name.textContent = x.name;
+    if (x.f) { const st = document.createElement('span'); st.className = 'rt-star'; st.textContent = '★ מומלץ'; name.append(st); }
+    const sub = document.createElement('span');
+    sub.className = 'rt-sub';
+    sub.textContent = [x.h + ' מ׳', 'רואים עד ' + reachText(x.maxReach), ACCESS_SHORT[x.access]].join(' · ');
+    main.append(name, sub);
+    const tags = [x.sunset === 2 ? '🌅 שקיעה' : '', x.sunrise === 2 ? '🌄 זריחה' : ''].concat(x.land.map((l) => LAND_NAME[l]), REGION_NAME[x.region]).filter(Boolean);
+    const t = document.createElement('span');
+    t.className = 'rt-tags';
+    t.textContent = tags.join(' · ');
+    main.append(t);
+    if (m.why.length) { const w = document.createElement('span'); w.className = 'rt-why'; w.textContent = m.why.join(' · '); main.append(w); }
+    b.append(ic, main);
+    if (m.dist != null && (VF.where === 'me' || VF.where === 'view')) {
+      const d = document.createElement('span');
+      d.className = 'rt-dist';
+      d.textContent = fmtKm(m.dist) + (VF.where === 'me' ? ' ממך' : '');
+      b.append(d);
+    }
+    b.addEventListener('click', () => showViewDetail(x));
+    li.append(b);
+    return li;
+  }
+  function renderViewResults() {
+    const { full, near } = vFound;
+    $('vr-title').textContent = full.length ? full.length + ' תצפיות מתאימות' : 'אין התאמה מלאה';
+    const where = VF.where === 'me' ? 'עד ' + VF.radius + ' ק״מ ממך' : VF.where === 'view' ? 'באזור שמוצג במפה' : REGION_NAME[VF.where] || 'בכל הארץ';
+    $('vr-sub').textContent = where + '. ' + (full.length ? 'המומלצות, הקרובות ובעלות הנוף הרחב ראשונות.' : '');
+    $('vr-list').replaceChildren(...full.slice(0, vShown).map(viewItem));
+    const nearShown = full.length < 10 ? near.slice(0, 10) : [];
+    $('vr-near').replaceChildren(...nearShown.map(viewItem));
+    $('vr-near-title').hidden = $('vr-near-sub').hidden = !nearShown.length;
+    $('vr-more').hidden = full.length <= vShown;
+  }
+  $('vr-more').addEventListener('click', () => { vShown += PAGE; renderViewResults(); });
+  $('vr-edit').addEventListener('click', () => showFindView('form'));
+
+  // ---------- One viewpoint ----------
+  const DIR8 = ['צפון', 'צפון־מזרח', 'מזרח', 'דרום־מזרח', 'דרום', 'דרום־מערב', 'מערב', 'צפון־מערב'];
+  function viewSentence(x) {
+    const r = x.v.v, n = r.length;
+    const sec = DIR8.map((name, k) => {
+      let m = 0;
+      for (let a = k * 45 - 20; a <= k * 45 + 20; a += 10) m = Math.max(m, r[(Math.round(a / (360 / n)) % n + n) % n]);
+      return [name, m];
+    });
+    const wide = sec.filter((q) => q[1] >= 15).sort((a, b) => b[1] - a[1]);
+    if (!wide.length) {
+      const best = sec.reduce((a, b) => (b[1] > a[1] ? b : a));
+      return best[1] < 2 ? 'הנוף מכאן סגור יחסית.' : 'נוף קרוב, עד ' + reachText(best[1]) + ' לכיוון ' + best[0] + '.';
+    }
+    if (wide.length >= 7) return 'נוף פתוח כמעט לכל הכיוונים, עד ' + reachText(wide[0][1]) + '.';
+    return 'נוף פתוח ל' + wide.slice(0, 3).map((q) => q[0] + ' (עד ' + reachText(q[1]) + ')').join(', ל') + '.';
+  }
+  // A compass with the reach in each direction (log scale: 5, 20 and 60 km rings), and arcs where the sun
+  // sets (orange) and rises (yellow) when the view is open there.
+  function drawCompass(x) {
+    const svg = $('vd-compass'), c = 80, R = 56, r = x.v.v, n = r.length;
+    const NS = 'http://www.w3.org/2000/svg';
+    const el = (tag, attrs, text) => {
+      const e = document.createElementNS(NS, tag);
+      Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v));
+      if (text) e.textContent = text;
+      return e;
+    };
+    const rad = (km) => R * Math.min(1, Math.log1p(km) / Math.log1p(60));
+    const pt = (az, d) => [c + d * Math.sin(az * D2R), c - d * Math.cos(az * D2R)];
+    const parts = [5, 20, 60].map((km) => el('circle', { cx: c, cy: c, r: rad(km).toFixed(1), class: 'cp-ring' }));
+    [5, 20, 60].forEach((km) => { const [px, py] = pt(135, rad(km) - 6); parts.push(el('text', { x: px.toFixed(1), y: py.toFixed(1), class: 'cp-km' }, String(km))); });
+    const arc = (a0, a1, cls, faint) => {
+      const d = R + 7, [x0, y0] = pt(a0, d), [x1, y1] = pt(a1, d);
+      return el('path', { d: 'M' + x0.toFixed(1) + ' ' + y0.toFixed(1) + ' A' + d + ' ' + d + ' 0 0 1 ' + x1.toFixed(1) + ' ' + y1.toFixed(1), class: 'cp-sun ' + cls, opacity: faint ? 0.4 : 1 });
+    };
+    if (x.sunset) parts.push(arc(240, 300, 'cp-sunset', x.sunset === 1));
+    if (x.sunrise) parts.push(arc(60, 120, 'cp-sunrise', x.sunrise === 1));
+    parts.push(el('polygon', { class: 'cp-area', points: r.map((km, i) => pt(i * 360 / n, Math.max(2, rad(km))).map((v) => v.toFixed(1)).join(',')).join(' ') }));
+    [['צ', 0], ['מז', 90], ['ד', 180], ['מע', 270]].forEach(([t, a]) => { const [px, py] = pt(a, R + 17); parts.push(el('text', { x: px.toFixed(1), y: py.toFixed(1), class: 'cp-lbl' }, t)); });
+    svg.replaceChildren(...parts);
+  }
+  // Inline links to viewpoints (on a trail page) and to trails (on a viewpoint page).
+  function viewLinks(prefix, ids, back) {
+    const span = document.createElement('span');
+    span.append(prefix);
+    loadViews().then(() => {
+      let first = true;
+      ids.forEach((id) => {
+        const v = viewsById.get(id);
+        if (!v) return;
+        if (!first) span.append(', ');
+        first = false;
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'inline-link';
+        b.textContent = v.name;
+        b.addEventListener('click', () => openViewById(id, back));
+        span.append(b);
+      });
+    });
+    return span;
+  }
+  function routeLinks(prefix, x) {
+    const span = document.createElement('span');
+    loadRoutes().then(() => {
+      const here = routesList.filter((rt) => rt.r.vp && rt.r.vp.includes(x.id)).slice(0, 8);
+      if (!here.length) { span.parentNode && span.parentNode.remove(); return; }
+      span.append(prefix);
+      here.forEach((rt, i) => {
+        if (i) span.append(', ');
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'inline-link';
+        b.textContent = rt.name;
+        b.addEventListener('click', () => openRouteById(rt.id, { label: 'חזרה לתצפית', fn: () => openViewById(x.id) }));
+        span.append(b);
+      });
+    });
+    return span;
+  }
+  function showViewDetail(x, back) {
+    vdBack = back || null;
+    $('vd-back').textContent = back ? back.label : 'חזרה לרשימה';
+    $('vd-name').textContent = x.name;
+    $('vd-sub').textContent = [x.f ? '★ תצפית מומלצת' : '', REGION_NAME[x.region], x.peak ? 'פסגה עם נוף רחב' : 'תצפית מסומנת',
+      x.guessedName ? 'השם לפי המקום הקרוב' : ''].filter(Boolean).join(' · ');
+    $('vd-desc').textContent = (x.f && x.f.desc) || '';
+    $('vd-desc').hidden = !(x.f && x.f.desc);
+    drawCompass(x);
+    $('vd-sentence').textContent = viewSentence(x);
+    $('vd-h').textContent = x.h + ' מ׳';
+    $('vd-reach').textContent = reachText(x.maxReach);
+    const sun = (k) => (k === 2 ? 'פתוח' : k === 1 ? 'חלקי' : '—');
+    $('vd-sunset').textContent = sun(x.sunset);
+    $('vd-sunrise').textContent = sun(x.sunrise);
+    const notes = [];
+    notes.push(x.access === 'car' ? '🚗 אפשר להגיע ברכב: כביש או חניה ' + (x.road <= 30 ? 'ממש ליד' : 'במרחק ' + fmtDist(x.road))
+      : x.access === 'walk' ? '🚶 כ־' + fmtDist(x.road) + ' הליכה מהכביש הסלול הקרוב'
+      : x.road != null ? '🥾 ' + fmtDist(x.road) + ' מהכביש הסלול הקרוב: מגיעים בטיול או בדרך עפר'
+      : '🥾 רחוק יותר מ־3 ק״מ מכביש סלול: מגיעים בטיול או בדרך עפר');
+    if (x.land.length) notes.push('נוף: ' + x.land.map((l) => LAND_NAME[l]).join(', '));
+    const li = document.createElement('li');
+    li.append(routeLinks('🥾 שבילים שעוברים כאן: ', x));
+    $('vd-notes').replaceChildren(...notes.map((t) => { const e = document.createElement('li'); e.append(t); return e; }), li);
+    const ll = x.lat.toFixed(5) + ',' + x.lon.toFixed(5);
+    $('vd-waze').href = 'https://waze.com/ul?ll=' + ll + '&navigate=yes';
+    $('vd-gmaps').href = 'https://www.google.com/maps/dir/?api=1&destination=' + ll;
+    vCurrent = x;
+    showFindView('detail');
+  }
+  $('vd-back').addEventListener('click', () => {
+    if (vdBack) vdBack.fn();
+    else showFindView(!vFound.full.length && !vFound.near.length ? 'form' : 'results');
+  });
+  function openViewById(id, back) {
+    loadViews().then(() => {
+      const x = viewsById.get(id);
+      if (!x) { toast('אין פרטים על התצפית הזאת.'); return; }
+      findMode = 'views';
+      setTab('find', true);
+      showViewDetail(x, back || { label: 'לחיפוש תצפיות', fn: () => showFindView('form') });
+    });
+  }
+
+  // ---------- Viewpoints on the map ----------
+  addPane('viewpoints', 372, true);
+  const VP_ICON = L.divIcon({ className: 'vp-ic', html: '<div></div>', iconSize: [18, 18], iconAnchor: [9, 9] });
+  const viewGroup = L.layerGroup();
+  const vpPin = L.marker([0, 0], { pane: 'viewpoints', icon: VP_ICON, zIndexOffset: 600, keyboard: false, interactive: false });
+  let viewMarkers = [];
+  function drawViewMarkers() {
+    viewMarkers = viewsList.map((x) => {
+      const m = L.marker([x.lat, x.lon], { pane: 'viewpoints', icon: VP_ICON, keyboard: false, title: x.name });
+      m.on('click', () => viewPopup(x));
+      return { ll: m.getLatLng(), m };
+    });
+    showViewLayer();
+  }
+  // Shown from zoom 11; only the markers near the screen are on the map.
+  function showViewLayer() {
+    const on = !!settings.views && map.getZoom() >= 11;
+    setLayer(viewGroup, on);
+    if (!on) return;
+    if (viewsState === '' || viewsState === 'failed') loadViews();
+    const b = map.getBounds().pad(0.2);
+    viewMarkers.forEach(({ ll, m }) => {
+      const want = b.contains(ll);
+      if (want !== viewGroup.hasLayer(m)) { if (want) viewGroup.addLayer(m); else viewGroup.removeLayer(m); }
+    });
+  }
+  map.on('moveend', showViewLayer);
+  function viewPopup(x) {
+    if (DRAW_TABS.includes(tab)) { map.fire('click', { latlng: L.latLng(x.lat, x.lon) }); return; } // a tap adds a point there
+    const box = document.createElement('div');
+    const title = document.createElement('div');
+    title.className = 'pop-title';
+    title.textContent = x.name;
+    const sub = document.createElement('div');
+    sub.className = 'pop-sub';
+    sub.textContent = x.h + ' מ׳ · רואים עד ' + reachText(x.maxReach) + (x.sunset === 2 ? ' · 🌅' : '') + (x.sunrise === 2 ? ' · 🌄' : '');
+    const more = document.createElement('button');
+    more.type = 'button';
+    more.className = 'pop-link';
+    more.textContent = 'לאן רואים מכאן ←';
+    more.addEventListener('click', () => { map.closePopup(); openViewById(x.id); });
+    box.append(title, sub, more);
+    L.popup({ closeButton: false, offset: [0, -6] }).setLatLng([x.lat, x.lon]).setContent(box).openOn(map);
+  }
+  $('vd-show').addEventListener('click', () => {
+    if (!vCurrent) return;
+    vpPin.setLatLng([vCurrent.lat, vCurrent.lon]).addTo(map);
+    vpPin.unbindTooltip().bindTooltip(vCurrent.name, { permanent: true, direction: 'top', offset: [0, -10] });
+    map.setView([vCurrent.lat, vCurrent.lon], Math.max(map.getZoom(), 14));
   });
 
   // ---------- Start ----------

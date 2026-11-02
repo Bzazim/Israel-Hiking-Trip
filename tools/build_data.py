@@ -9,15 +9,17 @@ Writes, under the output folder:
   hike/<i>_<j>.json  marked trails and bike trails, per grid cell
   topo/<i>_<j>.json  dirt roads, paths, streams, peaks and springs, per grid cell
   routes.json        facts about each named trail, for the route finder: length, climb,
-                     shape, start point, water on the way, road access (see route_facts)
+                     shape, start point, water on the way, road access, viewpoints on it (see route_facts)
+  views.json         viewpoints (marked ones, and named peaks with a wide view): how far the view
+                     reaches in each direction, how to get there, what kind of land is in sight (see view_facts)
 
 Coordinates are integers in 1e-5 degrees (about 1 m). A line is stored as
 [lat0, lon0, dlat1, dlon1, ...]: its first point, then the step to each next point.
 A way that crosses several cells is written to each of them; the app skips repeats by id.
 
-Heights for routes.json come from open elevation tiles (Mapterhorn, Copernicus GLO-30, with
+Heights for routes.json and views.json come from open elevation tiles (Mapterhorn, Copernicus GLO-30, with
 AWS Terrain Tiles as the backup), the same sources the app draws its contour lines from.
-Without them (no network) the routes are still written, without climb figures.
+Without them (no network) the routes are still written, without climb figures, and views.json is empty.
 """
 import io
 import json
@@ -58,6 +60,21 @@ SAMPLE = 25            # metres between height samples along a trail
 CLIMB_STEP = 5         # metres: smaller ups and downs are elevation-model noise, not climbing
 LOOP_GAP = 500         # metres: a line whose two ends are this close is a loop for the walker
 M_PER_DEG = 111195.0
+
+# Viewpoints
+VIEW_DIRS = 36            # sight lines around a viewpoint, one every 10 degrees
+VIEW_NEAR = 2000          # metres: up to here sight lines use the fine elevation tiles
+VIEW_FAR = 60000          # metres: how far each sight line is followed
+VIEW_D = list(range(150, VIEW_NEAR, 50)) + list(range(VIEW_NEAR, 10000, 200)) + list(range(10000, VIEW_FAR + 1, 500))
+EYE = 2                   # metres: eye height above the highest ground right at the viewpoint
+REFRACTION = 0.13         # the usual coefficient; air bends light down a little, so far land shows a bit more
+EARTH_R = 6371000.0
+VIEW_ON_TRAIL = 200       # metres: a viewpoint this close to a trail is on the trail
+PEAK_BY_VIEWPOINT = 400   # metres: a peak this close to a marked viewpoint is the same place
+# Points tagged as viewpoints whose name says they are something else (a business, a home, a street...).
+NOT_A_VIEW = re.compile(r'شركة|مكتب|منزل|محل |مطبخ|صالون|صالة|كفتيريا|مسبح|دوار|شارع|عمارة|فيلا|خيمة|كرفان|ديوان|غاز |'
+                        r'مجمع|مخيم|الأمن|شبكة|ملعب|\bHome\b|Headquarters')
+PEAK_OPEN = (20, 18)      # a named peak counts as a viewpoint when it sees 20 km or more in half the directions
 
 
 def mark_of(t):
@@ -180,14 +197,20 @@ class Features(osmium.SimpleHandler):
         self.topo = {}            # cell -> {'t': [...], 'p': [...]}
         self.places = []
         self.route_geom = {}      # trail way id -> [(lat, lon) in quanta]
-        self.roads = set()        # ROAD_GRID squares with a paved road or car park
+        self.roads = {}           # ROAD_GRID square -> points (degrees) of paved roads and car parks in it
         self.water = {}           # WATER_GRID square -> [[lat, lon, kind, name]] (quanta)
+        self.viewpoints = []      # [id, lat, lon, name] of points tagged tourism=viewpoint
+        self.peaks = []           # [id, lat, lon, name] of named peaks
+
+    def add_road_point(self, lat, lon):
+        self.roads.setdefault(grid_key(lat, lon, ROAD_GRID), []).append((lat, lon))
 
     def add_road(self, pts):
         for (y0, x0), (y1, x1) in zip(pts, pts[1:] or pts):
             n = max(1, int(max(abs(y1 - y0), abs(x1 - x0)) / Q / (ROAD_GRID / 2)))
-            for k in range(n + 1):
-                self.roads.add(grid_key((y0 + (y1 - y0) * k / n) / Q, (x0 + (x1 - x0) * k / n) / Q, ROAD_GRID))
+            for k in range(n + 1 if (y0, x0) == (y1, x1) else n):
+                self.add_road_point((y0 + (y1 - y0) * k / n) / Q, (x0 + (x1 - x0) * k / n) / Q)
+        self.add_road_point(pts[-1][0] / Q, pts[-1][1] / Q)
 
     def node(self, n):
         if not n.location.valid():
@@ -198,7 +221,9 @@ class Features(osmium.SimpleHandler):
         t = n.tags
         name = t.get('name:he') or t.get('name') or ''
         if t.get('amenity') == 'parking':
-            self.roads.add(grid_key(lat, lon, ROAD_GRID))
+            self.add_road_point(lat, lon)
+        if t.get('tourism') == 'viewpoint':
+            self.viewpoints.append([f'n{n.id}', lat, lon, name])
         for (k, v), code in WATER_KINDS.items():
             if t.get(k) == v:
                 self.water.setdefault(grid_key(lat, lon, WATER_GRID), []).append(
@@ -217,6 +242,8 @@ class Features(osmium.SimpleHandler):
                 ele = None
             if nat == 'peak' and not name and ele is None:
                 return
+            if nat == 'peak' and name:
+                self.peaks.append([f'p{n.id}', lat, lon, name])
             cell = self.topo.setdefault(cell_of(lat, lon), {'t': [], 'p': []})
             cell['p'].append([round(lat * Q), round(lon * Q), 0 if nat == 'peak' else 1, name, ele])
 
@@ -228,7 +255,8 @@ class Features(osmium.SimpleHandler):
                 kind = code
                 break
         road = w.tags.get('highway') in PAVED or w.tags.get('amenity') == 'parking'
-        if routes is None and kind is None and not road:
+        view = w.tags.get('tourism') == 'viewpoint'
+        if routes is None and kind is None and not road and not view:
             return
         pts = []
         for nd in w.nodes:
@@ -241,10 +269,13 @@ class Features(osmium.SimpleHandler):
             return
         if not pts or not any(inside(y / Q, x / Q) for y, x in pts):
             return
+        if view:
+            name = w.tags.get('name:he') or w.tags.get('name') or ''
+            self.viewpoints.append([f'w{w.id}', sum(p[0] for p in pts) / len(pts) / Q, sum(p[1] for p in pts) / len(pts) / Q, name])
         if road:
             self.add_road(pts)
-            if routes is None and kind is None:
-                return
+        if routes is None and kind is None:
+            return
         if len(pts) < 2:
             return
         g = encode(simplify(pts))
@@ -267,7 +298,9 @@ class Dem:
         ('https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png', 13, 256),
     ]
 
-    def __init__(self):
+    def __init__(self, sources=None):
+        if sources:
+            self.SOURCES = sources
         self.src = 0
         self.tiles = {}
 
@@ -403,6 +436,25 @@ def near_road(roads, lat, lon):
     return any((i + di, j + dj) in roads for di in (-1, 0, 1) for dj in (-1, 0, 1))
 
 
+def road_distance(roads, lat, lon, rings=15):
+    """Metres to the nearest paved road or car park (to within ~50 m), or None if farther than ~3 km."""
+    i, j = grid_key(lat, lon, ROAD_GRID)
+    best = None
+    for r in range(rings + 1):
+        for di in range(-r, r + 1):
+            for dj in range(-r, r + 1):
+                if max(abs(di), abs(dj)) != r:
+                    continue
+                for p in roads.get((i + di, j + dj), ()):
+                    m = metres((lat, lon), p)
+                    if best is None or m < best:
+                        best = m
+        # squares in the next ring are at least r squares away
+        if best is not None and best <= r * ROAD_GRID * M_PER_DEG * 0.85:
+            return best
+    return best
+
+
 def route_facts(rec, way_ids, facts, roads, water):
     """Everything the route finder knows about one route. Returns None for routes with no geometry."""
     ways = [facts[w] for w in dict.fromkeys(way_ids) if w in facts]
@@ -498,7 +550,185 @@ def route_facts(rec, way_ids, facts, roads, water):
     return out
 
 
-def build_routes(r, f):
+class Mosaic:
+    """One height grid over the country and the land around it, from coarser tiles (~70 m), for sight lines
+    that run tens of kilometres, into Jordan, Lebanon, Syria and Sinai too."""
+    SOURCES = [
+        ('https://tiles.mapterhorn.com/{z}/{x}/{y}.webp', 10, 512),
+        ('https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png', 11, 256),
+    ]
+    PAD = 0.6  # degrees around the area
+
+    def __init__(self):
+        import numpy as np
+        self.np = np
+        dem = Dem(self.SOURCES)
+        step = 0.05
+        rows = int((NORTH - SOUTH + 2 * self.PAD) / step) + 1
+        cols = int((EAST - WEST + 2 * self.PAD) / step) + 1
+        self.ok = dem.prefetch([(SOUTH - self.PAD + i * step, WEST - self.PAD + j * step)
+                                for i in range(rows) for j in range(cols)])
+        if not self.ok:
+            return
+        _, self.z, self.size = dem.SOURCES[dem.src]
+        xs = [k[0] for k in dem.tiles]
+        ys = [k[1] for k in dem.tiles]
+        self.x0, self.y0 = min(xs), min(ys)
+        sz = self.size
+        self.grid = np.zeros(((max(ys) - self.y0 + 1) * sz, (max(xs) - self.x0 + 1) * sz), dtype=np.int16)
+        for (x, y), t in dem.tiles.items():
+            if t is not None:
+                self.grid[(y - self.y0) * sz:(y - self.y0 + 1) * sz, (x - self.x0) * sz:(x - self.x0 + 1) * sz] = \
+                    np.clip(np.round(t), -32000, 32000)
+
+    def heights(self, lat, lon):
+        """Bilinear heights at arrays of points."""
+        np = self.np
+        n = 2 ** self.z * self.size
+        px = (lon + 180) / 360 * n - self.x0 * self.size - 0.5
+        py = (1 - np.arcsinh(np.tan(np.radians(lat))) / np.pi) / 2 * n - self.y0 * self.size - 0.5
+        H, W = self.grid.shape
+        px = np.clip(px, 0, W - 1.001)
+        py = np.clip(py, 0, H - 1.001)
+        x0, y0 = px.astype(int), py.astype(int)
+        fx, fy = px - x0, py - y0
+        g = self.grid
+        top = g[y0, x0] * (1 - fx) + g[y0, x0 + 1] * fx
+        bot = g[y0 + 1, x0] * (1 - fx) + g[y0 + 1, x0 + 1] * fx
+        return top * (1 - fy) + bot * fy
+
+
+def view_facts(lat, lon, dem, mosaic):
+    """The view from a point. For each of VIEW_DIRS directions, the farthest ground in sight; and from the land
+    in sight 1-20 km away, whether it is a wide lowland well below (a valley view) or high, broken land
+    around (a mountain view). Sight lines bend down with the earth's curve, less a little for refraction."""
+    np = mosaic.np
+    az = np.radians(np.arange(VIEW_DIRS) * 360 / VIEW_DIRS)
+    d = np.array(VIEW_D, dtype=float)
+    kx = 1 / (M_PER_DEG * math.cos(math.radians(lat)))
+    la = lat + np.outer(np.cos(az), d) / M_PER_DEG
+    lo = lon + np.outer(np.sin(az), d) * kx
+    h = mosaic.heights(la, lo)
+    near = int(np.searchsorted(d, VIEW_NEAR))
+    if dem is not None:  # the first two kilometres from the finer tiles
+        for i in range(VIEW_DIRS):
+            for j in range(near):
+                v = dem.height(la[i, j], lo[i, j])
+                if v is not None:
+                    h[i, j] = v
+
+    def ground(y, x):
+        v = dem.height(y, x) if dem is not None else None
+        return v if v is not None else float(mosaic.heights(np.array([y]), np.array([x]))[0])
+    # A viewpoint usually stands at the edge of a drop: take the highest ground within ~50 m.
+    g0 = max(ground(lat + 50 * math.cos(a) / M_PER_DEG, lon + 50 * math.sin(a) * kx) for a in np.radians(np.arange(0, 360, 45)))
+    g0 = max(g0, ground(lat, lon))
+    ang = (h - d * d / (2 * EARTH_R) * (1 - REFRACTION) - (g0 + EYE)) / d
+    seen_above = np.concatenate([np.full((VIEW_DIRS, 1), -np.inf), np.maximum.accumulate(ang, axis=1)[:, :-1]], axis=1)
+    vis = ang >= seen_above
+    reach = np.where(vis, d, 0).max(axis=1)
+
+    # The land in sight 1-20 km away. Valley view: flat ground (under 3% slope) at least 150 m below makes up
+    # 8% of it or more; the sea surface (height ~0) doesn't count. Mountain view: the heights in sight spread
+    # over 300 m or more (between the lowest and highest tenth).
+    band = (d >= 1000) & (d <= 20000)
+    slope = np.abs(np.diff(h, axis=1, append=h[:, -1:])) / np.diff(d, append=d[-1] + 1)
+    seen = vis[:, band]
+    hv, sv = h[:, band][seen], slope[:, band][seen]
+    total = VIEW_DIRS * int(band.sum())
+    flat_low = (hv <= g0 - 150) & (sv < 0.03) & (np.abs(hv) > 2)
+    valley = int(flat_low.sum()) >= 0.08 * total
+    mountains = len(hv) > 0 and float(np.percentile(hv, 90) - np.percentile(hv, 10)) >= 300
+    return {
+        'h': round(g0),
+        'v': [int(round(x / 1000)) for x in reach],
+        'val': 1 if valley else 0,
+        'mtn': 1 if mountains else 0,
+    }
+
+
+def build_views(f, dem):
+    """Marked viewpoints, and named peaks with a wide view that have no marked viewpoint next to them."""
+    try:
+        mosaic = Mosaic()
+    except ImportError:
+        print('numpy/Pillow missing: no viewpoints', flush=True)
+        return []
+    if not mosaic.ok:
+        print('no elevation data: no viewpoints', flush=True)
+        return []
+    if dem is not None and dem.src >= len(dem.SOURCES):
+        dem = None
+
+    def bucket(items, g=WATER_GRID):
+        out = {}
+        for it in items:
+            out.setdefault(grid_key(it[1], it[2], g), []).append(it)
+        return out
+
+    def nearest(buckets, lat, lon, within, g=WATER_GRID):
+        i, j = grid_key(lat, lon, g)
+        best = None
+        for di in (-1, 0, 1):
+            for dj in (-1, 0, 1):
+                for it in buckets.get((i + di, j + dj), ()):
+                    m = metres((lat, lon), (it[1], it[2]))
+                    if m <= within and (best is None or m < best[0]):
+                        best = (m, it)
+        return best[1] if best else None
+
+    vps = [v for v in f.viewpoints if not NOT_A_VIEW.search(v[3])]
+    if len(vps) < len(f.viewpoints):
+        print(f'viewpoints: {len(f.viewpoints) - len(vps)} left out by name (not a viewpoint)', flush=True)
+    by_vp = bucket(vps)
+    peaks = [p for p in f.peaks if not nearest(by_vp, p[1], p[2], PEAK_BY_VIEWPOINT)]
+    cands = [(0, v) for v in vps] + [(1, p) for p in peaks]
+    print(f'viewpoints: {len(vps)} marked, {len(peaks)} named peaks to check', flush=True)
+    if dem is not None:
+        dem.prefetch([(c[1] + a, c[2] + b) for _, c in cands for a in (-0.02, 0, 0.02) for b in (-0.024, 0, 0.024)])
+
+    by_peak = bucket(f.peaks, 0.02)
+    by_place = bucket([[None, y / Q, x / Q, name] for y, x, k, name in f.places if k <= 3], 0.05)
+    out = []
+    for kind, (vid, lat, lon, name) in cands:
+        v = view_facts(lat, lon, dem, mosaic)
+        if kind == 1 and sum(1 for x in v['v'] if x >= PEAK_OPEN[0]) < PEAK_OPEN[1]:
+            continue
+        o = {'id': vid, 'n': name, 'k': kind, 's': [round(lat * Q), round(lon * Q)]}
+        if not name:  # name it after what is near
+            near = nearest(by_peak, lat, lon, 1500, 0.02) or nearest(by_place, lat, lon, 5000, 0.05)
+            o['n'] = 'תצפית ליד ' + near[3] if near else 'תצפית'
+            o['nn'] = 1
+        rd = road_distance(f.roads, lat, lon)
+        o['r'] = None if rd is None else int(round(rd / 10) * 10)
+        o.update(v)
+        out.append(o)
+    print(f'viewpoints: {len(out)} written ({sum(1 for o in out if o["k"] == 1)} of them peaks)', flush=True)
+    return out
+
+
+def link_views(routes, members, facts, views):
+    """Lists on each route the viewpoints within VIEW_ON_TRAIL metres of it, in the order they come."""
+    grid = {}
+    for v in views:
+        grid.setdefault(grid_key(v['s'][0] / Q, v['s'][1] / Q, WATER_GRID), []).append(v)
+    for o in routes:
+        seen = []
+        for w in dict.fromkeys(members[o['id']]):
+            if w not in facts:
+                continue
+            for lat, lon in facts[w].samples[::2]:
+                i, j = grid_key(lat, lon, WATER_GRID)
+                for di in (-1, 0, 1):
+                    for dj in (-1, 0, 1):
+                        for v in grid.get((i + di, j + dj), ()):
+                            if v['id'] not in seen and metres((lat, lon), (v['s'][0] / Q, v['s'][1] / Q)) <= VIEW_ON_TRAIL:
+                                seen.append(v['id'])
+        if seen:
+            o['vp'] = seen
+
+
+def build_routes(r, f, dem):
     named = [i for i, rec in enumerate(r.routes) if rec[0].strip()]
     facts = {}
     for i in named:
@@ -506,21 +736,21 @@ def build_routes(r, f):
             if w not in facts and w in f.route_geom:
                 facts[w] = WayFacts(f.route_geom[w])
     print(f'route finder: {len(named)} named routes, {len(facts)} ways', flush=True)
-    dem = Dem()
     try:
         if dem.prefetch([s for wf in facts.values() for s in wf.samples]):
             for wf in facts.values():
                 wf.set_heights(dem)
     except ImportError:
         print('numpy/Pillow missing: routes written without heights', flush=True)
-    out = []
+    out, members = [], {}
     for i in named:
         o = route_facts(r.routes[i], r.members[i], facts, f.roads, f.water)
         if o:
             out.append(o)
+            members[o['id']] = r.members[i]
     with_h = sum(1 for o in out if 'up' in o)
     print(f'route finder: {len(out)} routes, {with_h} with heights', flush=True)
-    return out
+    return out, members, facts
 
 
 def write(path, obj):
@@ -536,7 +766,8 @@ def main(pbf, out):
     f = Features(r.way_routes)
     f.apply_file(pbf, locations=True, idx='flex_mem')
     print(f'{len(f.hike)} trail cells, {len(f.topo)} topo cells, {len(f.places)} places, '
-          f'{len(f.roads)} road squares, {sum(map(len, f.water.values()))} water points', flush=True)
+          f'{len(f.roads)} road squares, {sum(map(len, f.water.values()))} water points, '
+          f'{len(f.viewpoints)} viewpoints, {len(f.peaks)} named peaks', flush=True)
 
     for sub in ('hike', 'topo'):
         d = os.path.join(out, sub)
@@ -552,7 +783,12 @@ def main(pbf, out):
         write(os.path.join(out, 'topo', c + '.json'), data)
     write(os.path.join(out, 'places.json'), f.places)
     built = datetime.now(timezone.utc).strftime('%Y-%m-%d')
-    write(os.path.join(out, 'routes.json'), {'built': built, 'r': build_routes(r, f)})
+    dem = Dem()
+    routes, members, facts = build_routes(r, f, dem)
+    views = build_views(f, dem)
+    link_views(routes, members, facts, views)
+    write(os.path.join(out, 'routes.json'), {'built': built, 'r': routes})
+    write(os.path.join(out, 'views.json'), {'built': built, 'dirs': VIEW_DIRS, 'v': views})
     write(os.path.join(out, 'meta.json'), {
         'built': built, 'cell': CELL,
         'hike': sorted(f.hike), 'topo': sorted(f.topo)
