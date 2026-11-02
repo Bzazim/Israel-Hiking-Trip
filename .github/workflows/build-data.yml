@@ -1,4 +1,4 @@
-# Builds the trail, dirt road and place-name data that ships with the app (data/),
+# Builds the trail, dirt road, place-name and route-finder data that ships with the app (data/),
 # from the latest OpenStreetMap extract of Israel, and commits it to the branch it ran on.
 name: Build map data
 
@@ -26,7 +26,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: pip install osmium==4.3.2
+      - run: pip install osmium==4.3.2 numpy==2.1.3 pillow==11.0.0  # numpy and Pillow read elevation tiles for routes.json
       - name: Download OpenStreetMap extract (Geofabrik)
         run: curl -fsSL --retry 3 -o israel.osm.pbf https://download.geofabrik.de/asia/israel-and-palestine-latest.osm.pbf
       - run: python tools/build_data.py israel.osm.pbf data

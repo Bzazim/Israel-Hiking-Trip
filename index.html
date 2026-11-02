@@ -175,7 +175,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .sheet { position: relative; z-index: 1000; flex: none; margin-top: -16px; background: var(--panel); border-radius: 16px 16px 0 0; box-shadow: var(--shadow); }
 .sheet-body { padding: 16px 16px 8px; max-height: 48vh; overflow-y: auto; overscroll-behavior: contain; }
 .tabs {
-  display: grid; grid-template-columns: repeat(5, 1fr); border-top: 1px solid var(--line);
+  display: grid; grid-template-columns: repeat(6, 1fr); border-top: 1px solid var(--line);
   padding: 0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
 }
 .tab {
@@ -280,6 +280,35 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
 .dot.wait { background: #D9A400; }
 .rec-line { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 14px; }
 .rec-line strong { font-variant-numeric: tabular-nums; font-weight: 600; }
+
+/* Route finder */
+.f-label { margin: 14px 0 6px; font-size: 14px; color: var(--muted); }
+#f-diff { gap: 6px; }
+#f-diff .chip, #f-extra .chip { padding: 7px 12px; }
+#f-extra { gap: 6px; }
+.f-reset { flex: 0 0 auto; padding-inline: 18px; }
+.rts { list-style: none; margin: 6px 0 0; padding: 0; }
+.rts li { border-top: 1px solid var(--line); }
+.rt { width: 100%; display: flex; align-items: flex-start; gap: 10px; text-align: right; border: 0; background: none; color: var(--ink); padding: 11px 2px; cursor: pointer; font-size: 15px; }
+.rt .blaze { margin-top: 2px; }
+.rt-main { flex: 1; min-width: 0; }
+.rt-name { display: block; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rt-star { color: #C98A00; font-size: 13px; margin-inline-start: 4px; }
+.rt-sub { display: block; margin-top: 2px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.rt-why { display: block; margin-top: 3px; font-size: 12.5px; color: var(--blaze-red); }
+.rt-tags { display: block; margin-top: 3px; font-size: 12.5px; color: var(--olive); }
+.rt-dist { flex: none; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; padding-top: 2px; }
+.fr-near { margin-top: 16px; }
+.fr-more { margin-top: 10px; width: 100%; }
+.fd-title { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+.fd-sub { margin: 4px 0 0; font-size: 13.5px; color: var(--muted); }
+.fd-desc { margin: 10px 0 0; font-size: 14.5px; line-height: 1.5; }
+.fd-notes { margin: 12px 0 0; padding: 0; list-style: none; font-size: 14px; line-height: 1.45; }
+.fd-notes li { padding: 3px 0; }
+a.btn { display: block; text-align: center; text-decoration: none; }
+.facts dd.lvl-1 { color: #2E8048; }
+.facts dd.lvl-3, .facts dd.lvl-4 { color: var(--blaze-red); }
+.pop-link { display: block; margin-top: 8px; border: 0; background: none; padding: 2px 0; color: #56662F; font: 500 14px "Rubik", sans-serif; cursor: pointer; }
 
 .banner {
   position: absolute; top: calc(12px + env(safe-area-inset-top, 0px)); left: 56px; right: 12px; z-index: 1002;
@@ -476,6 +505,79 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
       <p class="hint">המעקב פועל כשהאפליקציה פתוחה על המסך, ובזמן המעקב המסך יישאר דלוק.</p>
     </section>
 
+    <section data-view="find" hidden>
+      <div id="find-form">
+        <div class="seg" role="group" aria-label="סוג מסלול" id="f-kind">
+          <button type="button" data-v="h">הליכה</button>
+          <button type="button" data-v="m">אופני שטח</button>
+        </div>
+        <label class="field">איפה<select id="f-where"></select></label>
+        <label class="field" id="f-radius-row" hidden>עד מרחק<select id="f-radius"></select></label>
+        <label class="field">אורך<select id="f-len"></select></label>
+        <label class="field">זמן<select id="f-time"></select></label>
+        <label class="field">טיפוס מצטבר<select id="f-climb"></select></label>
+        <label class="field">עונה<select id="f-season"></select></label>
+        <div class="f-label">רמת קושי</div>
+        <div class="row" id="f-diff">
+          <button type="button" class="chip" data-v="1">קל</button>
+          <button type="button" class="chip" data-v="2">בינוני</button>
+          <button type="button" class="chip" data-v="3">קשה</button>
+          <button type="button" class="chip" data-v="4">קשה מאוד</button>
+        </div>
+        <div class="f-label">צורה</div>
+        <div class="seg" role="group" aria-label="צורת המסלול" id="f-shape">
+          <button type="button" data-v="">לא משנה</button>
+          <button type="button" data-v="loop">מעגלי</button>
+          <button type="button" data-v="line">קווי</button>
+        </div>
+        <div class="row chips" id="f-extra">
+          <button type="button" class="chip" data-v="water">💧 מים בדרך</button>
+          <button type="button" class="chip" data-v="family">למשפחות</button>
+          <button type="button" class="chip" data-v="car">התחלה ליד כביש</button>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn primary" id="f-go">מצא מסלולים</button>
+          <button type="button" class="btn f-reset" id="f-reset">איפוס</button>
+        </div>
+        <p class="hint" id="f-status" hidden></p>
+      </div>
+      <div id="find-results" hidden>
+        <div class="row between"><h2 id="fr-title">מסלולים</h2><button type="button" class="link" id="fr-edit">שינוי ההגדרות</button></div>
+        <p class="hint" id="fr-sub"></p>
+        <ul class="rts" id="fr-list"></ul>
+        <h2 class="fr-near" id="fr-near-title" hidden>כמעט מתאימים</h2>
+        <p class="hint" id="fr-near-sub" hidden>מסלולים ששונים מההגדרות שלך בדבר אחד קטן.</p>
+        <ul class="rts" id="fr-near"></ul>
+        <button type="button" class="btn fr-more" id="fr-more" hidden>עוד מסלולים</button>
+      </div>
+      <div id="find-detail" hidden>
+        <div class="row between"><span></span><button type="button" class="link" id="fd-back">חזרה לרשימה</button></div>
+        <h2 class="fd-title"><span class="blaze" id="fd-blaze"></span><span id="fd-name"></span></h2>
+        <p class="fd-sub" id="fd-sub"></p>
+        <p class="fd-desc" id="fd-desc" hidden></p>
+        <dl class="facts">
+          <div><dt>אורך</dt><dd id="fd-km"></dd></div>
+          <div><dt>זמן משוער</dt><dd id="fd-time"></dd></div>
+          <div><dt>עלייה</dt><dd id="fd-up"></dd></div>
+          <div><dt>ירידה</dt><dd id="fd-dn"></dd></div>
+          <div><dt>קושי</dt><dd id="fd-diff"></dd></div>
+          <div><dt>צורה</dt><dd id="fd-shape"></dd></div>
+          <div><dt>גובה</dt><dd id="fd-alt" dir="ltr"></dd></div>
+          <div><dt>שיפוע מרבי</dt><dd id="fd-steep"></dd></div>
+        </dl>
+        <ul class="fd-notes" id="fd-notes"></ul>
+        <div class="actions">
+          <button type="button" class="btn primary" id="fd-show">הצגה במפה</button>
+          <button type="button" class="btn" id="fd-gpx">ייצוא GPX</button>
+        </div>
+        <div class="actions">
+          <a class="btn" id="fd-waze" target="_blank" rel="noopener">ניווט ב־Waze</a>
+          <a class="btn" id="fd-gmaps" target="_blank" rel="noopener">Google Maps</a>
+        </div>
+        <p class="hint">הנתונים מחושבים אוטומטית ממפת OpenStreetMap וממודל גובה, והזמן והקושי משוערים. כדאי לבדוק את המסלול ואת מזג האוויר לפני היציאה.</p>
+      </div>
+    </section>
+
   </div>
 
   <nav class="tabs" aria-label="כלים">
@@ -487,6 +589,8 @@ h2 { font-size: 17px; font-weight: 600; margin: 0; }
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="5" cy="18" r="2"/><circle cx="19" cy="6" r="2"/><path d="M7 18h6a3 3 0 0 0 0-6h-2a3 3 0 0 1 0-6h6"/></svg>ציר</button>
     <button type="button" class="tab" data-tab="azimuth">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5 5-2Z"/></svg>אזימוט</button>
+    <button type="button" class="tab" data-tab="find">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M12 22V3"/><path d="M5 5h11l3 2.5L16 10H5z"/><path d="M19 12H9l-3 2.5L9 17h10z"/></svg>מסלולים</button>
     <button type="button" class="tab" data-tab="gps">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/></svg>מיקום</button>
   </nav>
@@ -501,9 +605,10 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
 </script>
 
 <!-- What's new: edit the text here and raise data-version, and everyone sees it again, also those who ticked "don't show". -->
-<dialog class="news" id="news" data-version="5" aria-labelledby="news-title">
+<dialog class="news" id="news" data-version="6" aria-labelledby="news-title">
   <h2 id="news-title">מה חדש?</h2>
   <ol>
+    <li>לשונית מסלולים: בוחרים אורך, זמן, קושי, אזור ועונה, ומקבלים המלצות על שבילים מסומנים עם טיפוס, זמן הליכה ומים בדרך</li>
     <li>בניית ציר הליכה</li>
     <li>מדידת מרחק</li>
     <li>בדיקת אזימוטים</li>
@@ -1085,7 +1190,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     return out;
   }
 
-  function trailPopup(ll, name, kind, int, mark) {
+  function trailPopup(ll, name, kind, int, mark, relId) {
     if (DRAW_TABS.includes(tab)) return; // in drawing tools a tap adds a point instead
     const box = document.createElement('div');
     const title = document.createElement('div');
@@ -1101,10 +1206,18 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     }
     sub.append(int ? 'שביל ישראל' : (kind === 'mtb' ? 'שביל אופניים' : 'שביל הליכה') + (mark ? ', סימון ' + MARK[mark][1] : ''));
     box.append(title, sub);
+    if (name && relId) { // a named trail: its length, climb and time are in the route finder
+      const more = document.createElement('button');
+      more.type = 'button';
+      more.className = 'pop-link';
+      more.textContent = 'אורך, טיפוס וזמן הליכה ←';
+      more.addEventListener('click', () => { map.closePopup(); openRouteById(relId); });
+      box.append(more);
+    }
     L.popup({ closeButton: false, offset: [0, -4] }).setLatLng(ll).setContent(box).openOn(map);
   }
 
-  // One square of trails: { r: [[name, mark, 'h'|'m', israelTrail], ...], w: [[wayId, [route...], line], ...] }
+  // One square of trails: { r: [[name, mark, 'h'|'m', israelTrail, relationId], ...], w: [[wayId, [route...], line], ...] }
   function drawHike(d) {
     const byRoute = new Map();
     d.w.forEach(([id, rs, g]) => {
@@ -1114,7 +1227,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
       rs.forEach((r) => { if (!byRoute.has(r)) byRoute.set(r, []); byRoute.get(r).push(line); });
     });
     byRoute.forEach((lines, r) => {
-      const [name, m, k, nat] = d.r[r];
+      const [name, m, k, nat, relId] = d.r[r];
       const kind = k === 'm' ? 'mtb' : 'hiking', mark = MARK[m] ? m : null, int = nat === 1;
       const color = int ? MARK.orange[0] : mark ? MARK[mark][0] : kind === 'mtb' ? '#1F5FA8' : '#C62E2E';
       const g = trailGroups[kind];
@@ -1124,7 +1237,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
         renderer: trailRenderer, color, weight: 3.5, lineCap: 'butt',
         dashArray: int ? '10 10' : kind === 'mtb' ? '8 5' : null
       }).addTo(g);
-      top.on('click', (e) => trailPopup(e.latlng, name, kind, int, mark));
+      top.on('click', (e) => trailPopup(e.latlng, name, kind, int, mark, relId));
     });
   }
 
@@ -1674,6 +1787,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     settings.open = sheetOpen;
     saveSettings();
     drawRoute();
+    if (tab === 'find' && sheetOpen) openFinder();
   }
   document.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => setTab(b.dataset.tab)));
   if ('ResizeObserver' in window) new ResizeObserver(() => map.invalidateSize({ animate: false })).observe($('sheet'));
@@ -2125,6 +2239,393 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 2000);
   }
+
+  // ---------- Route finder (מסלולים) ----------
+  // data/routes.json, made by tools/build_data.py: facts about every named marked trail (length, climb,
+  // shape, start, water, road access). data/featured.json: hand-picked hikes with a description, linked to
+  // those trails by name. All the matching runs here on the phone, without a server: hard limits (kind of
+  // trail, where), then the wishes. Trails that meet every wish come first; when there are few, trails that
+  // miss one wish by a little are shown too, with what is different about them.
+  const REGIONS = [
+    ['north', 'גליל עליון וגולן'], ['galil', 'גליל תחתון, כנרת ועמקים'], ['carmel', 'כרמל וחוף הצפון'],
+    ['center', 'שרון ומרכז'], ['samaria', 'שומרון ובקעת הירדן'], ['jerusalem', 'ירושלים והרי יהודה'],
+    ['shfela', 'שפלה והחוף הדרומי'], ['judean', 'מדבר יהודה וים המלח'], ['negevN', 'צפון הנגב'],
+    ['negevH', 'הר הנגב ומכתש רמון'], ['arava', 'ערבה'], ['eilat', 'אילת והרי אילת']
+  ];
+  const REGION_NAME = Object.fromEntries(REGIONS);
+  const DESERT = new Set(['judean', 'negevN', 'negevH', 'arava', 'eilat']);
+  // Rough lines, good enough to sort trails into the areas walkers know.
+  function regionOf(lat, lon) {
+    if (lat >= 32.95 || (lat >= 32.7 && lon >= 35.6)) return 'north';
+    if (lat >= 32.4) return lon < 35.12 ? 'carmel' : 'galil';
+    if (lat >= 31.9) return lon < 35.0 ? 'center' : 'samaria';
+    if (lat >= 31.35) return lon >= 35.3 ? 'judean' : lon >= 34.93 ? 'jerusalem' : 'shfela';
+    if (lat >= 30.95) return lon >= 35.3 ? 'judean' : 'negevN';
+    if (lat >= 30.25) return lon >= 35.1 ? 'arava' : 'negevH';
+    return lat >= 29.75 ? 'arava' : 'eilat';
+  }
+  const SEASONS = [['winter', 'חורף'], ['spring', 'אביב'], ['summer', 'קיץ'], ['autumn', 'סתיו']];
+  const SEASON_NAME = Object.fromEntries(SEASONS);
+  const seasonNow = () => ['winter', 'winter', 'spring', 'spring', 'spring', 'summer', 'summer', 'summer', 'summer', 'autumn', 'autumn', 'winter'][new Date().getMonth()];
+  const DIFF_NAME = ['', 'קל', 'בינוני', 'קשה', 'קשה מאוד'];
+  const SHAPE_NAME = ['מעגלי', 'קווי', 'מפוצל'];
+  const WATER_NAME = ['מעיין', 'ברזייה', 'מפל'];
+  const OPTS = {
+    where: [['all', 'בכל הארץ'], ['view', 'באזור שמוצג במפה'], ['me', 'קרוב אליי']].concat(REGIONS),
+    radius: [['10', '10 ק״מ'], ['25', '25 ק״מ'], ['50', '50 ק״מ'], ['100', '100 ק״מ']],
+    len: [['', 'לא משנה'], ['0-5', 'עד 5 ק״מ'], ['5-10', '5–10 ק״מ'], ['10-15', '10–15 ק״מ'], ['15-25', '15–25 ק״מ'], ['25-50', '25–50 ק״מ'], ['50-', 'מעל 50 ק״מ']],
+    time: [['', 'לא משנה'], ['0-2', 'עד שעתיים'], ['2-4', '2–4 שעות'], ['4-6', '4–6 שעות'], ['6-9', 'יום מלא (6–9 שעות)'], ['9-', 'יותר מיום']],
+    climb: [['', 'לא משנה'], ['150', 'עד 150 מ׳'], ['300', 'עד 300 מ׳'], ['600', 'עד 600 מ׳'], ['1000', 'עד 1,000 מ׳']],
+    season: [['', 'לא משנה'], ['now', 'עכשיו (' + SEASON_NAME[seasonNow()] + ')']].concat(SEASONS)
+  };
+  const FIND_DEFAULT = { kind: 'h', where: 'all', radius: '25', len: '', time: '', climb: '', season: '', diff: [], shape: '', water: false, family: false, car: false };
+  const F = Object.assign({}, FIND_DEFAULT, settings.find || {});
+  const PAGE = 25;
+  let routesState = '', routesList = [], routesById = new Map(), myPos = null, locating = false;
+  let findView = 'form', found = { full: [], near: [] }, shownCount = PAGE, current = null;
+
+  function fillSelect(id, opts, value) {
+    const sel = $(id);
+    sel.replaceChildren(...opts.map(([v, t]) => { const o = document.createElement('option'); o.value = v; o.textContent = t; return o; }));
+    sel.value = value;
+  }
+  function fmtHours(h) {
+    if (h > 10) return 'כ־' + Math.ceil(h / 8) + ' ימי הליכה';
+    const mins = Math.max(5, Math.round(h * 60 / 5) * 5), hh = Math.floor(mins / 60), mm = mins % 60;
+    return hh && mm ? hh + ':' + pad(mm, 2) + ' ש׳' : hh ? hh + ' ש׳' : mm + ' דק׳';
+  }
+  const fmtKm = (km) => (km < 10 ? km.toFixed(1) : Math.round(km)) + ' ק״מ';
+
+  // Everything the finder needs about one trail, worked out from the build's facts.
+  function deriveRoute(r, f) {
+    const lat = r.s[0] / 1e5, lon = r.s[1] / 1e5, bike = r.k === 'm', has = r.up != null;
+    const km = f && f.km ? f.km : r.km;
+    const up = has ? r.up : 0, dn = has ? r.dn : 0, avg = (up + dn) / 2;
+    // Walking time: DIN 33466 (4 km/h, 300 m up and 500 m down an hour, the smaller part counts half),
+    // averaged over both directions of a one-way trail. Mountain bike: 12 km/h and 600 m up an hour.
+    const din = (a, b) => { const h = km / 4, v = a / 300 + b / 500; return Math.max(h, v) + Math.min(h, v) / 2; };
+    const hours = f && f.hours ? f.hours : bike ? km / 12 + avg / 600 : (din(up, dn) + din(dn, up)) / 2;
+    // Effort: kilometres plus 1 for each 100 m of climbing, plus 2 for a very steep stretch.
+    const effort = (bike ? km / 3 : km) + avg / 100 + ((r.st || 0) >= (bike ? 20 : 25) ? 2 : 0);
+    const lim = bike ? [6, 12, 20] : [6, 13, 22];
+    const diff = effort <= lim[0] ? 1 : effort <= lim[1] ? 2 : effort <= lim[2] ? 3 : 4;
+    const region = regionOf(lat, lon);
+    const water = f && f.water != null ? f.water : (r.wn || 0) > 0;
+    // Season: desert areas are for the cool months; elsewhere summer suits trails with water or height.
+    const seasons = f && f.seasons ? f.seasons
+      : DESERT.has(region) ? ['winter', 'spring', 'autumn']
+      : water || (r.hi || 0) >= 800 ? ['winter', 'spring', 'summer', 'autumn'] : ['winter', 'spring', 'autumn'];
+    const shape = f && f.loop != null ? (f.loop ? 0 : 1) : r.sh;
+    const family = f && f.family != null ? f.family : !bike && diff === 1 && (r.st || 0) < 25;
+    return { r, f, id: r.id, name: r.n, kind: r.k, lat, lon, km, up: has ? up : null, dn: has ? dn : null, hours, diff, region, water, seasons, shape, family, car: r.car === 1 };
+  }
+
+  function loadRoutes() {
+    if (routesState === 'done' || routesState === 'loading') return routesState === 'done' ? Promise.resolve() : loadRoutes.p;
+    routesState = 'loading';
+    renderFindStatus();
+    loadRoutes.p = Promise.all([getData('routes.json'), getData('featured.json').catch(() => ({ hikes: [] }))]).then(([rd, fd]) => {
+      const feat = new Map();
+      (fd.hikes || []).forEach((h) => feat.set(h.osm, h));
+      routesList = rd.r.map((r) => {
+        const f = feat.get(r.n);
+        return deriveRoute(r, f && r.k === 'h' && (!f.mark || f.mark === r.m) ? f : null);
+      });
+      routesById = new Map(routesList.map((x) => [x.id, x]));
+      routesState = 'done';
+      renderFindStatus();
+      refreshCount();
+    }).catch(() => { routesState = 'failed'; renderFindStatus(); });
+    return loadRoutes.p;
+  }
+  function openFinder() {
+    loadRoutes();
+    if (F.where === 'me') locateMe();
+    showFindView(findView);
+  }
+  function openRouteById(id) {
+    loadRoutes().then(() => {
+      const x = routesById.get(id);
+      if (!x) { toast('אין פרטים על השביל הזה.'); return; }
+      setTab('find', true);
+      showDetail(x, true);
+    });
+  }
+  function renderFindStatus() {
+    const el = $('f-status');
+    let t = '';
+    if (routesState === 'loading') t = 'טוען את רשימת המסלולים…';
+    else if (routesState === 'failed') t = 'רשימת המסלולים לא זמינה כרגע. בדוק את החיבור ונסה שוב.';
+    else if (F.where === 'me' && locating) t = 'מאתר את המיקום שלך…';
+    el.textContent = t;
+    el.hidden = !t;
+  }
+
+  // ---------- Matching ----------
+  const parseRange = (spec) => { const [a, b] = spec.split('-'); return [a ? +a : 0, b ? +b : Infinity]; };
+  // 0: within the range, 1: a little outside it, 2: far outside it.
+  function rangeMiss(v, spec, tolAbs, tolRel) {
+    if (!spec) return 0;
+    const [lo, hi] = parseRange(spec);
+    if (v >= lo && v <= hi) return 0;
+    const edge = v < lo ? lo : hi;
+    return Math.abs(v - edge) <= Math.max(tolAbs, tolRel * edge) ? 1 : 2;
+  }
+  function refPoint() {
+    if (F.where === 'me') return myPos;
+    return map.getCenter();
+  }
+  function evaluate(x, ref, view) {
+    if (x.kind !== F.kind) return null;
+    if (x.km < 0.8 && !x.f) return null; // bits of trail, not walks
+    const dist = ref ? map.distance(ref, [x.lat, x.lon]) / 1000 : null;
+    if (F.where === 'me' && (dist == null || dist > +F.radius)) return null;
+    if (F.where === 'view' && !view.contains([x.lat, x.lon])) return null;
+    if (REGION_NAME[F.where] && x.region !== F.where) return null;
+    const why = [];
+    let out = false;
+    const check = (lvl, text) => { if (lvl === 2) out = true; else if (lvl === 1) why.push(text); };
+    if (F.len) check(rangeMiss(x.km, F.len, 1.5, 0.3), (x.km > parseRange(F.len)[1] ? 'ארוך יותר: ' : 'קצר יותר: ') + fmtKm(x.km));
+    if (F.time) check(rangeMiss(x.hours, F.time, 0.75, 0.3), (x.hours > parseRange(F.time)[1] ? 'ארוך יותר: ' : 'קצר יותר: ') + fmtHours(x.hours));
+    if (F.climb && x.up != null) check(rangeMiss(x.up, '0-' + F.climb, 80, 0.3), 'טיפוס של ' + x.up + ' מ׳');
+    if (F.diff.length && !F.diff.includes(x.diff)) {
+      check(F.diff.some((d) => Math.abs(d - x.diff) === 1) ? 1 : 2, 'רמת קושי: ' + DIFF_NAME[x.diff]);
+    }
+    if (F.shape === 'loop' && x.shape !== 0) check(1, x.shape === 1 ? 'קווי, לא מעגלי' : 'לא ברור אם הוא מעגלי');
+    if (F.shape === 'line' && x.shape !== 1) check(1, x.shape === 0 ? 'מעגלי, לא קווי' : 'לא ברור אם הוא קווי');
+    const season = F.season === 'now' ? seasonNow() : F.season;
+    if (season && !x.seasons.includes(season)) check(1, 'פחות מתאים ל' + SEASON_NAME[season]);
+    if (F.water && !x.water) check(1, 'בלי מים מסומנים בדרך');
+    if (F.family && F.kind === 'h' && !x.family) check(x.diff <= 2 ? 1 : 2, 'פחות מתאים למשפחות');
+    if (F.car && !x.car) check(1, 'אין כביש סלול ליד ההתחלה');
+    if (out || why.length > 1) return null;
+    // Nearer first; a hand-picked hike counts as if it were nearer.
+    const score = (dist == null ? 0 : dist) * (x.f ? 0.5 : 1) + (x.f ? -1 : 0);
+    return { x, why, dist, score };
+  }
+  function runMatch() {
+    if (routesState !== 'done') return { full: [], near: [] };
+    const ref = refPoint(), view = map.getBounds();
+    const all = routesList.map((x) => evaluate(x, ref, view)).filter(Boolean);
+    const by = (a, b) => a.score - b.score;
+    return { full: all.filter((m) => !m.why.length).sort(by), near: all.filter((m) => m.why.length).sort(by) };
+  }
+  function refreshCount() {
+    const btn = $('f-go');
+    if (routesState !== 'done' || (F.where === 'me' && !myPos)) {
+      btn.textContent = 'מצא מסלולים';
+      btn.disabled = routesState === 'failed';
+      return;
+    }
+    const m = runMatch();
+    btn.disabled = !m.full.length && !m.near.length;
+    btn.textContent = m.full.length ? 'הצגת ' + m.full.length + ' מסלולים'
+      : m.near.length ? 'הצגת ' + m.near.length + ' מסלולים קרובים' : 'אין מסלולים מתאימים';
+  }
+
+  // ---------- Filter form ----------
+  function renderForm() {
+    fillSelect('f-where', OPTS.where, F.where);
+    fillSelect('f-radius', OPTS.radius, F.radius);
+    fillSelect('f-len', OPTS.len, F.len);
+    fillSelect('f-time', OPTS.time, F.time);
+    fillSelect('f-climb', OPTS.climb, F.climb);
+    fillSelect('f-season', OPTS.season, F.season);
+    syncForm();
+  }
+  function syncForm() {
+    document.querySelectorAll('#f-kind button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === F.kind)));
+    document.querySelectorAll('#f-shape button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === F.shape)));
+    document.querySelectorAll('#f-diff button').forEach((b) => b.setAttribute('aria-pressed', String(F.diff.includes(+b.dataset.v))));
+    document.querySelectorAll('#f-extra button').forEach((b) => b.setAttribute('aria-pressed', String(!!F[b.dataset.v])));
+    $('f-radius-row').hidden = F.where !== 'me';
+    $('f-extra').querySelector('[data-v="family"]').hidden = F.kind === 'm';
+  }
+  function changed() {
+    settings.find = F;
+    saveSettings();
+    syncForm();
+    if (F.where === 'me') locateMe();
+    renderFindStatus();
+    refreshCount();
+  }
+  function locateMe() {
+    if (fix) { myPos = L.latLng(fix.lat, fix.lng); return; }
+    if (locating || !navigator.geolocation) return;
+    locating = true;
+    navigator.geolocation.getCurrentPosition((p) => {
+      locating = false;
+      myPos = L.latLng(p.coords.latitude, p.coords.longitude);
+      renderFindStatus();
+      refreshCount();
+    }, () => {
+      locating = false;
+      toast('לא הצלחתי לאתר את המיקום שלך. אפשר לבחור אזור במקום.');
+      renderFindStatus();
+      refreshCount();
+    }, { enableHighAccuracy: false, timeout: 20000, maximumAge: 600000 });
+  }
+  [['f-where', 'where'], ['f-radius', 'radius'], ['f-len', 'len'], ['f-time', 'time'], ['f-climb', 'climb'], ['f-season', 'season']].forEach(([id, k]) => {
+    $(id).addEventListener('change', (e) => { F[k] = e.target.value; changed(); });
+  });
+  document.querySelectorAll('#f-kind button').forEach((b) => b.addEventListener('click', () => { F.kind = b.dataset.v; changed(); }));
+  document.querySelectorAll('#f-shape button').forEach((b) => b.addEventListener('click', () => { F.shape = b.dataset.v; changed(); }));
+  document.querySelectorAll('#f-diff button').forEach((b) => b.addEventListener('click', () => {
+    const v = +b.dataset.v;
+    F.diff = F.diff.includes(v) ? F.diff.filter((d) => d !== v) : F.diff.concat(v).sort();
+    changed();
+  }));
+  document.querySelectorAll('#f-extra button').forEach((b) => b.addEventListener('click', () => { F[b.dataset.v] = !F[b.dataset.v]; changed(); }));
+  $('f-reset').addEventListener('click', () => { Object.assign(F, FIND_DEFAULT, { diff: [] }); renderForm(); changed(); });
+  $('f-go').addEventListener('click', () => {
+    if (F.where === 'me' && !myPos) { locateMe(); renderFindStatus(); return; }
+    found = runMatch();
+    shownCount = PAGE;
+    findLayer.clearLayers();
+    renderResults();
+    showFindView('results');
+  });
+  // The map moved: "in the map area" and the distances depend on it.
+  map.on('moveend', () => { if (tab === 'find' && sheetOpen && findView === 'form') refreshCount(); });
+
+  // ---------- Results ----------
+  function showFindView(v) {
+    findView = v;
+    $('find-form').hidden = v !== 'form';
+    $('find-results').hidden = v !== 'results';
+    $('find-detail').hidden = v !== 'detail';
+    if (v === 'form') { renderForm(); renderFindStatus(); refreshCount(); }
+    $('sheet-body').scrollTop = 0;
+  }
+  const markColor = (x) => x.r.nat ? MARK.orange[0] : MARK[x.r.m] ? MARK[x.r.m][0] : x.kind === 'm' ? '#1F5FA8' : '#C62E2E';
+  function routeItem(m) {
+    const x = m.x;
+    const li = document.createElement('li');
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'rt';
+    const bl = document.createElement('span');
+    bl.className = 'blaze';
+    bl.style.setProperty('--c', markColor(x));
+    const main = document.createElement('span');
+    main.className = 'rt-main';
+    const name = document.createElement('span');
+    name.className = 'rt-name';
+    name.textContent = x.name;
+    if (x.f) { const st = document.createElement('span'); st.className = 'rt-star'; st.textContent = '★ מומלץ'; name.append(st); }
+    const sub = document.createElement('span');
+    sub.className = 'rt-sub';
+    sub.textContent = [fmtKm(x.km), fmtHours(x.hours), x.up != null ? 'עלייה ' + x.up + ' מ׳' : '', DIFF_NAME[x.diff], SHAPE_NAME[x.shape]].filter(Boolean).join(' · ');
+    main.append(name, sub);
+    const tags = [x.water ? '💧 מים' : '', x.family ? 'למשפחות' : '', x.car ? 'ליד כביש' : '', REGION_NAME[x.region]].filter(Boolean);
+    if (tags.length) { const t = document.createElement('span'); t.className = 'rt-tags'; t.textContent = tags.join(' · '); main.append(t); }
+    if (m.why.length) { const w = document.createElement('span'); w.className = 'rt-why'; w.textContent = m.why.join(' · '); main.append(w); }
+    b.append(bl, main);
+    if (m.dist != null && F.where !== 'all' && !REGION_NAME[F.where]) {
+      const d = document.createElement('span');
+      d.className = 'rt-dist';
+      d.textContent = fmtKm(m.dist) + (F.where === 'me' ? ' ממך' : '');
+      b.append(d);
+    }
+    b.addEventListener('click', () => showDetail(x));
+    li.append(b);
+    return li;
+  }
+  function renderResults() {
+    const { full, near } = found;
+    $('fr-title').textContent = full.length ? full.length + ' מסלולים מתאימים' : 'אין התאמה מלאה';
+    const where = F.where === 'me' ? 'עד ' + F.radius + ' ק״מ ממך' : F.where === 'view' ? 'באזור שמוצג במפה' : REGION_NAME[F.where] || 'בכל הארץ';
+    $('fr-sub').textContent = (F.kind === 'm' ? 'אופני שטח' : 'הליכה') + ', ' + where + '. ' + (full.length ? 'המומלצים והקרובים ראשונים.' : '');
+    $('fr-list').replaceChildren(...full.slice(0, shownCount).map(routeItem));
+    const nearShown = full.length < 10 ? near.slice(0, 10) : [];
+    $('fr-near').replaceChildren(...nearShown.map(routeItem));
+    $('fr-near-title').hidden = $('fr-near-sub').hidden = !nearShown.length;
+    $('fr-more').hidden = full.length <= shownCount;
+  }
+  $('fr-more').addEventListener('click', () => { shownCount += PAGE; renderResults(); });
+  $('fr-edit').addEventListener('click', () => showFindView('form'));
+
+  // ---------- One route: details, on the map, GPX ----------
+  addPane('findLine', 365);
+  const findLayer = L.layerGroup().addTo(map);
+  const lineCache = new Map();
+  let fromPopup = false;
+  // The trail's lines, from the same squares the map draws trails from.
+  function routeLines(x) {
+    if (lineCache.has(x.id)) return lineCache.get(x.id);
+    const seen = new Set(), lines = [];
+    const p = Promise.all(x.r.c.map((c) => getData('hike/' + c + '.json').then((d) => {
+      const mine = new Set();
+      d.r.forEach((r, i) => {
+        if (r[4] === x.id || (r[4] === undefined && r[0] === x.r.n && r[1] === x.r.m && r[2] === x.r.k)) mine.add(i);
+      });
+      d.w.forEach(([id, rs, g]) => {
+        if (!seen.has(id) && rs.some((i) => mine.has(i))) { seen.add(id); lines.push(decode(g)); }
+      });
+    }).catch(() => {}))).then(() => lines);
+    lineCache.set(x.id, p);
+    p.then((l) => { if (!l.length) lineCache.delete(x.id); });
+    return p;
+  }
+  async function showOnMap(x) {
+    const lines = await routeLines(x);
+    findLayer.clearLayers();
+    if (!lines.length) { toast('לא הצלחתי לטעון את קו המסלול.'); return; }
+    const opt = { pane: 'findLine', interactive: false };
+    L.polyline(lines, Object.assign({ color: '#FFC300', weight: 14, opacity: .45 }, opt)).addTo(findLayer);
+    L.polyline(lines, Object.assign({ color: '#FFFFFF', weight: 7, opacity: .95 }, opt)).addTo(findLayer);
+    L.polyline(lines, Object.assign({ color: markColor(x), weight: 4 }, opt)).addTo(findLayer);
+    const dot = (ll, color, label) => L.circleMarker(ll, { pane: 'findLine', radius: 8, color: '#fff', weight: 3, fillColor: color, fillOpacity: 1 })
+      .bindTooltip(label, { direction: 'top', offset: [0, -8] }).addTo(findLayer);
+    dot([x.lat, x.lon], '#2E8048', 'התחלה' + (x.car ? ', ליד כביש' : ''));
+    if (x.r.e && x.shape === 1) dot([x.r.e[0] / 1e5, x.r.e[1] / 1e5], '#C62E2E', 'סוף');
+    current = x;
+    map.fitBounds(L.latLngBounds(lines.flat()), { padding: [40, 40], maxZoom: 15 });
+  }
+  function showDetail(x, viaPopup) {
+    fromPopup = !!viaPopup;
+    $('fd-back').textContent = fromPopup ? 'לחיפוש מסלולים' : 'חזרה לרשימה';
+    $('fd-blaze').style.setProperty('--c', markColor(x));
+    $('fd-name').textContent = x.name;
+    const mark = x.r.nat ? 'שביל ישראל' : MARK[x.r.m] ? 'סימון ' + MARK[x.r.m][1] : '';
+    $('fd-sub').textContent = [x.f ? '★ מסלול מומלץ' : '', REGION_NAME[x.region], x.kind === 'm' ? 'שביל אופני שטח' : 'שביל הליכה', mark].filter(Boolean).join(' · ');
+    $('fd-desc').textContent = (x.f && x.f.desc) || '';
+    $('fd-desc').hidden = !(x.f && x.f.desc);
+    $('fd-km').textContent = fmtKm(x.km);
+    $('fd-time').textContent = fmtHours(x.hours);
+    $('fd-up').textContent = x.up != null ? x.up + ' מ׳' : '—';
+    $('fd-dn').textContent = x.dn != null ? x.dn + ' מ׳' : '—';
+    $('fd-diff').textContent = DIFF_NAME[x.diff];
+    $('fd-diff').className = 'lvl-' + x.diff;
+    $('fd-shape').textContent = SHAPE_NAME[x.shape];
+    $('fd-alt').textContent = x.r.lo != null ? x.r.lo + ' – ' + x.r.hi + ' מ׳' : '—';
+    $('fd-steep').textContent = x.r.st != null ? x.r.st + '%' : '—';
+    const notes = [];
+    if (x.r.w && x.r.w.length) {
+      const named = x.r.w.filter((w) => w[3]).map((w) => w[3]);
+      const kinds = [...new Set(x.r.w.map((w) => WATER_NAME[w[2]]))];
+      notes.push('💧 מים בדרך: ' + (named.length ? named.slice(0, 5).join(', ') + (x.r.wn > 5 ? ' ועוד' : '') : kinds.join(', ')));
+    } else if (x.f && x.f.water) notes.push('💧 יש מים לאורך המסלול');
+    else notes.push('אין מעיינות או ברזיות מסומנים ליד השביל. כדאי לקחת מספיק מים.');
+    notes.push(x.car ? '🚗 נקודת ההתחלה ליד כביש סלול או חניה' : x.r.car === 2 ? 'הכביש הסלול הקרוב לא בנקודת ההתחלה אלא לאורך השביל' : 'אין כביש סלול ליד נקודת ההתחלה, ייתכן שצריך דרך עפר');
+    if (x.shape === 1) notes.push('מסלול קווי: הסוף רחוק מההתחלה, צריך הסעה או חזרה באותה דרך');
+    notes.push('עונה מומלצת: ' + x.seasons.map((s) => SEASON_NAME[s]).join(', ') + (x.family ? ' · מתאים למשפחות' : ''));
+    $('fd-notes').replaceChildren(...notes.map((t) => { const li = document.createElement('li'); li.textContent = t; return li; }));
+    const ll = x.lat.toFixed(5) + ',' + x.lon.toFixed(5);
+    $('fd-waze').href = 'https://waze.com/ul?ll=' + ll + '&navigate=yes';
+    $('fd-gmaps').href = 'https://www.google.com/maps/dir/?api=1&destination=' + ll;
+    current = x;
+    showFindView('detail');
+  }
+  $('fd-back').addEventListener('click', () => showFindView(fromPopup || !found.full.length && !found.near.length ? 'form' : 'results'));
+  $('fd-show').addEventListener('click', () => { if (current) showOnMap(current); });
+  $('fd-gpx').addEventListener('click', async () => {
+    if (!current) return;
+    const x = current, lines = await routeLines(x);
+    if (!lines.length) { toast('לא הצלחתי לטעון את קו המסלול.'); return; }
+    const segs = lines.map((l) => '<trkseg>' + l.map(([a, b]) => '<trkpt lat="' + a.toFixed(5) + '" lon="' + b.toFixed(5) + '"/>').join('') + '</trkseg>').join('\n');
+    downloadGpx(x.name, '<wpt lat="' + x.lat.toFixed(5) + '" lon="' + x.lon.toFixed(5) + '"><name>התחלה</name></wpt>\n<trk><name>' + esc(x.name) + '</name>\n' + segs + '\n</trk>');
+  });
 
   // ---------- Start ----------
   applyLayers();

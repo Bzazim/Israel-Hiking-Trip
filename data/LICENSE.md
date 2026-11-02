@@ -1,7 +1,12 @@
 # Map data license
 
-The files in this folder (`meta.json`, `places.json`, `hike/`, `topo/`) are derived from
-[OpenStreetMap](https://www.openstreetmap.org) data by `tools/build_data.py`.
+The files in this folder (`meta.json`, `places.json`, `routes.json`, `hike/`, `topo/`) are derived from
+[OpenStreetMap](https://www.openstreetmap.org) data by `tools/build_data.py`. The climb and height
+figures in `routes.json` are computed from elevation data (Mapterhorn, Copernicus GLO-30 DEM; AWS
+Terrain Tiles as a backup).
+
+`featured.json` (hand-picked hikes and their descriptions) is written by hand. It refers to trails
+by their OpenStreetMap names.
 
 © OpenStreetMap contributors. This database is made available under the
 [Open Database License (ODbL) 1.0](https://opendatacommons.org/licenses/odbl/1-0/).

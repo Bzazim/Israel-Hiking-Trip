@@ -1,0 +1,148 @@
+{
+  "about": "Hand-picked hikes for the route finder. Each one points to a marked trail in routes.json by its OpenStreetMap name ('osm', and 'mark' when two trails share a name); length, climb and the line on the map come from there. Fields here add to them or override them: 'desc' a short description, 'seasons' (winter, spring, summer, autumn), 'family' true/false, 'water' true/false, and optionally 'km', 'hours', 'loop' when the popular walk differs from the mapped trail. 'checked': false marks a draft entry that a person has not yet checked against a reliable source.",
+  "hikes": [
+    {
+      "osm": "נחל עמוד",
+      "desc": "נחל איתן בין הרי צפת לכנרת, עם מעיינות, שרידי טחנות קמח ועמוד הסלע שעל שמו נקרא הנחל.",
+      "seasons": ["winter", "spring", "summer", "autumn"],
+      "water": true,
+      "checked": false
+    },
+    {
+      "osm": "נחל כזיב",
+      "desc": "נחל איתן ומוצל בגליל המערבי, עם מעיינות לאורכו ומבצר המונפור הצלבני מעל הנחל.",
+      "seasons": ["winter", "spring", "summer", "autumn"],
+      "water": true,
+      "checked": false
+    },
+    {
+      "osm": "מתל דן לנחל שניר",
+      "desc": "הליכה קלה ומוצלת בין מעיינות הדן לנחל שניר, טובה גם לימי קיץ.",
+      "seasons": ["winter", "spring", "summer", "autumn"],
+      "family": true,
+      "water": true,
+      "checked": false
+    },
+    {
+      "osm": "מפל זוויתן",
+      "desc": "מסלול קצר ברמת הגולן לאורך נחל זוויתן אל המפל, בין סלעי בזלת. המפל זורם בעיקר בחורף ובאביב.",
+      "seasons": ["winter", "spring"],
+      "family": true,
+      "checked": false
+    },
+    {
+      "osm": "נחל עיון מסלול ארוך",
+      "desc": "שמורת נחל עיון ליד מטולה, עם מפלים לאורך הנחל ובהם מפל התנור. המים זורמים בעיקר בחורף ובאביב.",
+      "seasons": ["winter", "spring"],
+      "family": true,
+      "water": true,
+      "checked": false
+    },
+    {
+      "osm": "שביל נחל יהודיה",
+      "desc": "שמורת יער יהודיה ברמת הגולן: נחלים שחצבו קניונים בבזלת, עם גבים ומפלים.",
+      "seasons": ["spring", "summer", "autumn"],
+      "water": true,
+      "checked": false
+    },
+    {
+      "osm": "מבית הכנסת לעין ארבל",
+      "desc": "ירידה משרידי בית הכנסת העתיק של ארבל אל עין ארבל, בשולי מצוק הארבל ומול הכנרת.",
+      "seasons": ["winter", "spring", "autumn"],
+      "checked": false
+    },
+    {
+      "osm": "שביל כורזים–כפר נחום",
+      "desc": "ירידה מהעיר העתיקה כורזים, הבנויה בזלת, אל כפר נחום שעל חוף הכנרת.",
+      "seasons": ["winter", "spring", "autumn"],
+      "checked": false
+    },
+    {
+      "osm": "קניון הבזלת - נחל תבור",
+      "desc": "קניון בזלת בנחל תבור, בירידתו אל עמק הירדן.",
+      "seasons": ["winter", "spring"],
+      "checked": false
+    },
+    {
+      "osm": "שביל הפסגה הר תבור",
+      "desc": "מסלול מעגלי קצר סביב פסגת הר תבור, עם תצפיות לעמק יזרעאל ולגליל.",
+      "seasons": ["winter", "spring", "summer", "autumn"],
+      "family": true,
+      "checked": false
+    },
+    {
+      "osm": "נחל השופט - המסלול הנגיש",
+      "desc": "מסלול קצר ונגיש לאורך נחל השופט הזורם ברמת מנשה, בצל עצים.",
+      "seasons": ["winter", "spring", "summer", "autumn"],
+      "family": true,
+      "water": true,
+      "checked": false
+    },
+    {
+      "osm": "מצוק רמות נפתלי",
+      "desc": "שביל לאורך מצוק רמות נפתלי, עם תצפית רחבה על עמק החולה.",
+      "seasons": ["winter", "spring", "autumn"],
+      "checked": false
+    },
+    {
+      "osm": "נחל צלמון תחתון",
+      "desc": "הקטע התחתון של נחל צלמון בדרכו לכנרת, עם מעיינות לאורך הנחל.",
+      "seasons": ["winter", "spring", "autumn"],
+      "water": true,
+      "checked": false
+    },
+    {
+      "osm": "שוויצריה הקטנה",
+      "desc": "מסלול בכרמל, באזור המיוער שנקרא שווייץ הקטנה, עם נוף לנחלי הכרמל.",
+      "seasons": ["winter", "spring", "summer", "autumn"],
+      "family": true,
+      "checked": false
+    },
+    {
+      "osm": "סובב עין כרם",
+      "desc": "מסלול סביב הכפר עין כרם בירושלים, דרך מעיין מרים, כנסיות וטרסות.",
+      "seasons": ["winter", "spring", "summer", "autumn"],
+      "family": true,
+      "checked": false
+    },
+    {
+      "osm": "נחל דולב",
+      "desc": "נחל מיוער בהרי ירושלים, עם עין דולב.",
+      "seasons": ["winter", "spring", "autumn"],
+      "checked": false
+    },
+    {
+      "osm": "נחל קטלב",
+      "desc": "ירידה תלולה בנחל קטלב בהרי ירושלים, ליד מעיינות עין גיורא ועין קטלב.",
+      "seasons": ["winter", "spring", "autumn"],
+      "family": false,
+      "checked": false
+    },
+    {
+      "osm": "נחל כסלון",
+      "desc": "הליכה ארוכה במורד נחל כסלון בהרי ירושלים, בין יערות וחורש טבעי.",
+      "seasons": ["winter", "spring", "autumn"],
+      "checked": false
+    },
+    {
+      "osm": "הר ארדון",
+      "desc": "טיפוס להר ארדון שבמכתש רמון, עם תצפית רחבה על המכתש. יש בו קטעים תלולים.",
+      "seasons": ["winter", "spring", "autumn"],
+      "family": false,
+      "checked": false
+    },
+    {
+      "osm": "נחל ברק",
+      "desc": "קניון מדברי צר בנגב, עם גבים ומעברים בעזרת יתדות.",
+      "seasons": ["winter", "spring", "autumn"],
+      "family": false,
+      "checked": false
+    },
+    {
+      "osm": "שביל ישראל",
+      "desc": "השביל הארוך של ישראל, מדן ועד אילת. אפשר ללכת אותו כולו או לבחור קטע ממנו.",
+      "seasons": ["winter", "spring", "autumn"],
+      "checked": false
+    }
+  ]
+}
