@@ -2764,6 +2764,14 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
       return (u / (a + 1.5)) ** 2 + (v / (b + 1.5)) ** 2 <= 1; // 1.5 km more, for the viewpoints on the rim
     });
   }
+  function inVisibleArea(lat, lon) {
+    let inside = false;
+    for (let i = 0, j = VISIBLE_AREA.length - 1; i < VISIBLE_AREA.length; j = i++) {
+      const [yi, xi] = VISIBLE_AREA[i], [yj, xj] = VISIBLE_AREA[j];
+      if ((yi > lat) !== (yj > lat) && lon < (xj - xi) * (lat - yi) / (yj - yi) + xi) inside = !inside;
+    }
+    return inside;
+  }
   const reachText = (km) => (km >= 60 ? '\u206660+\u2069' : km) + ' ק״מ'; // the isolate keeps "60+" in order inside Hebrew text
   const median = (a) => { const b = a.slice().sort((p, q) => p - q); return b[b.length >> 1]; };
 
@@ -2804,7 +2812,8 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     loadViews.p = Promise.all([getData('views.json'), getFeatured()]).then(([vd, fd]) => {
       const feats = fd.views || [], byName = new Map();
       feats.forEach((f) => { if (f.osm) byName.set(f.osm, f); });
-      viewsList = vd.v.map((v) => deriveView(v, (!v.nn && byName.get(v.n)) || null));
+      // Only the area the map shows (not Gaza, nor across the borders).
+      viewsList = vd.v.filter((v) => inVisibleArea(v.s[0] / 1e5, v.s[1] / 1e5)).map((v) => deriveView(v, (!v.nn && byName.get(v.n)) || null));
       // A hand-picked viewpoint given by position ('near': [lat, lon]) takes the closest one within 500 m.
       feats.filter((f) => !f.osm && f.near).forEach((f) => {
         let best = null, bd = 500;

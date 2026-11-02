@@ -71,6 +71,9 @@ REFRACTION = 0.13         # the usual coefficient; air bends light down a little
 EARTH_R = 6371000.0
 VIEW_ON_TRAIL = 200       # metres: a viewpoint this close to a trail is on the trail
 PEAK_BY_VIEWPOINT = 400   # metres: a peak this close to a marked viewpoint is the same place
+# Points tagged as viewpoints whose name says they are something else (a business, a home, a street...).
+NOT_A_VIEW = re.compile(r'شركة|مكتب|منزل|محل |مطبخ|صالون|صالة|كفتيريا|مسبح|دوار|شارع|عمارة|فيلا|خيمة|كرفان|ديوان|غاز |'
+                        r'مجمع|مخيم|الأمن|شبكة|ملعب|\bHome\b|Headquarters')
 PEAK_OPEN = (20, 18)      # a named peak counts as a viewpoint when it sees 20 km or more in half the directions
 
 
@@ -674,7 +677,9 @@ def build_views(f, dem):
                         best = (m, it)
         return best[1] if best else None
 
-    vps = f.viewpoints
+    vps = [v for v in f.viewpoints if not NOT_A_VIEW.search(v[3])]
+    if len(vps) < len(f.viewpoints):
+        print(f'viewpoints: {len(f.viewpoints) - len(vps)} left out by name (not a viewpoint)', flush=True)
     by_vp = bucket(vps)
     peaks = [p for p in f.peaks if not nearest(by_vp, p[1], p[2], PEAK_BY_VIEWPOINT)]
     cands = [(0, v) for v in vps] + [(1, p) for p in peaks]
