@@ -18,7 +18,7 @@ The map data in [`data/`](data/) comes from OpenStreetMap and is under the
 | Trails, dirt roads, streams, place names, place search | © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright); search via [Nominatim](https://nominatim.org) and [Photon](https://photon.komoot.io) | ODbL |
 | Hiking map background | [OpenTopoMap](https://opentopomap.org) | CC-BY-SA |
 | Aerial imagery, hillshade, roads, backup map | Esri, Maxar, Earthstar Geographics | Esri terms of use |
-| Contour lines | [Mapterhorn](https://mapterhorn.com/attribution), Copernicus GLO-30 DEM | see Mapterhorn attribution |
+| Contour lines, route climb and height | [Mapterhorn](https://mapterhorn.com/attribution), Copernicus GLO-30 DEM; backup: AWS Terrain Tiles | see Mapterhorn attribution |
 | Map library | [Leaflet](https://leafletjs.com) | BSD-2-Clause |
 | Map rotation | [leaflet-rotate](https://github.com/Raruto/leaflet-rotate) | GPL-3.0 |
 | Font | [Rubik](https://fonts.google.com/specimen/Rubik) | SIL Open Font License |
