@@ -30,6 +30,8 @@ import os
 import re
 import sys
 import time
+import threading
+import urllib.error
 import urllib.parse
 import urllib.request
 from collections import Counter
@@ -84,6 +86,7 @@ COMMONS_API = 'https://commons.wikimedia.org/w/api.php'
 USER_AGENT = 'IsraelHikingMap-data/1.0 (https://github.com/Bzazim/Israel-Hiking-Trip)'
 PHOTO_RADIUS = 1000       # metres around the viewpoint
 PHOTOS = 3                # per viewpoint
+PHOTO_BUDGET = 25 * 60    # seconds for all the photo searches; viewpoints not reached keep their photos
 # Never the view from the ground: space and air photos, night skies, insides, plants, animals, food, signs.
 PHOTO_NEVER = re.compile(r'\bISS\d|view of earth|\b(night|milky way|stars|aerial|drone|interior|inside|inner|selfie|'
                          r'portrait|diagram|logo|maps?|signs?|signpost|plaques?|inscriptions?|flowers?|insects?|butterfly|'
@@ -754,20 +757,47 @@ def strip_html(v):
     return ' '.join(v.split())
 
 
+COMMONS_PROBLEMS = Counter()   # what went wrong, for the build log
+_commons_lock = threading.Lock()
+_commons_last = [0.0]
+COMMONS_GAP = 0.3              # seconds between calls, whatever the number of threads
+
+
+def commons_problem(what):
+    with _commons_lock:
+        COMMONS_PROBLEMS[what] += 1
+        if COMMONS_PROBLEMS[what] == 1:
+            print(f'photos: Commons said: {what}', flush=True)
+
+
 def commons(params):
-    """One Commons API call, politely: a clear user agent, maxlag, and a few tries with pauses."""
+    """One Commons API call, politely: a clear user agent, maxlag, one call every COMMONS_GAP seconds, and
+    longer pauses when asked to slow down (HTTP 429 and its Retry-After, maxlag, rate limits)."""
     q = urllib.parse.urlencode({**params, 'format': 'json', 'formatversion': 2, 'maxlag': 5})
     req = urllib.request.Request(COMMONS_API + '?' + q, headers={'User-Agent': USER_AGENT})
-    for attempt in range(4):
+    for attempt in range(5):
+        with _commons_lock:
+            wait = _commons_last[0] + COMMONS_GAP - time.monotonic()
+            _commons_last[0] = time.monotonic() + max(wait, 0)
+        if wait > 0:
+            time.sleep(wait)
         try:
             with urllib.request.urlopen(req, timeout=40) as r:
                 d = json.load(r)
-        except Exception:  # noqa: BLE001
-            time.sleep(2 + 3 * attempt)
+        except urllib.error.HTTPError as e:
+            commons_problem(f'HTTP {e.code}')
+            retry = e.headers.get('Retry-After', '') if e.headers else ''
+            time.sleep(min(int(retry) if retry.isdigit() else 10 * (attempt + 1), 120))
+            continue
+        except Exception as e:  # noqa: BLE001 - network trouble
+            commons_problem(type(e).__name__)
+            time.sleep(3 + 3 * attempt)
             continue
         if 'error' in d:
-            if d['error'].get('code') == 'maxlag':
-                time.sleep(5 + 5 * attempt)
+            code = d['error'].get('code', '?')
+            commons_problem(f"{code}: {d['error'].get('info', '')[:150]}")
+            if code == 'maxlag' or 'rate' in code or 'limit' in code:
+                time.sleep(10 * (attempt + 1))
                 continue
             return None
         return d
@@ -854,8 +884,17 @@ def chosen_photos(names):
     return [e for e in (photo_entry(pages[t]) for t in ('File:' + n.replace('_', ' ') for n in names) if t in pages) if e]
 
 
-def find_photos(views, featured):
-    """Up to PHOTOS photos per viewpoint: hand-picked ones first (featured.json), then the best found nearby."""
+def name_ok(name):
+    """The checks a file name alone allows, for photos kept from an earlier build."""
+    t = 'File:' + name
+    view = PHOTO_VIEW.search(t) is not None
+    return not (PHOTO_NEVER.search(t) or (PHOTO_THING.search(t) and not view) or (SPECIES.search(t) and not view))
+
+
+def find_photos(views, featured, before=None):
+    """Up to PHOTOS photos per viewpoint: hand-picked ones first (featured.json), then the best found nearby.
+    Where a search fails, the viewpoint keeps its photos from the last build (before), if they still pass."""
+    before = before or {}
     picked = {}
     for f in (featured or {}).get('views', []):
         if not f.get('photos'):
@@ -870,28 +909,36 @@ def find_photos(views, featured):
         chosen = chosen_photos(f['photos'])
         for i in ids:
             picked[i] = chosen
-    out, failed = {}, 0
-    if views and photos_near(views[0]['s'][0] / Q, views[0]['s'][1] / Q) is None:
-        print('photos: Wikimedia Commons unreachable, photos not updated', flush=True)
-        return out, len(views)
+    out, failed, late = {}, 0, 0
+    if views and all(photos_near(v['s'][0] / Q, v['s'][1] / Q) is None for v in views[:3]):
+        print(f'photos: Wikimedia Commons not answering ({dict(COMMONS_PROBLEMS)}), photos not updated', flush=True)
+        return None
+    deadline = time.monotonic() + PHOTO_BUDGET
 
     def one(v):
+        if time.monotonic() > deadline:
+            return v['id'], 'late'
         return v['id'], photos_near(v['s'][0] / Q, v['s'][1] / Q)
-    with ThreadPoolExecutor(3) as ex:
+    with ThreadPoolExecutor(2) as ex:
         for vid, found in ex.map(one, views):
-            if found is None:
-                failed += 1
-                found = []
+            if found is None or found == 'late':
+                if found is None:
+                    failed += 1
+                else:
+                    late += 1
+                found = [e for e in before.get(vid, []) if name_ok(e[0])]
             mine = picked.get(vid, [])
             names = {e[0] for e in mine}
             got = (mine + [e for e in found if e[0] not in names])[:PHOTOS]
             if got:
                 out[vid] = got
     print(f'photos: {len(out)} of {len(views)} viewpoints have photos, {sum(map(len, out.values()))} photos, '
-          f'{failed} searches failed', flush=True)
+          f'{failed} searches failed, {late} not searched (out of time) and kept their photos', flush=True)
+    if COMMONS_PROBLEMS:
+        print(f'photos: problems on the way: {dict(COMMONS_PROBLEMS)}', flush=True)
     for vid in list(out)[:5]:
         print('  e.g.', vid, [e[0] for e in out[vid]], flush=True)
-    return out, failed
+    return out
 
 
 def link_views(routes, members, facts, views):
@@ -983,8 +1030,14 @@ def main(pbf, out):
     except (OSError, ValueError):
         pass
     if views and os.environ.get('NO_PHOTOS') != '1':
-        photos, failed = find_photos(views, featured)
-        if failed < len(views) / 2:  # Commons unreachable: keep the photos from the last build
+        before = {}
+        try:
+            with open(os.path.join(out, 'photos.json'), encoding='utf-8') as fh:
+                before = json.load(fh).get('p', {})
+        except (OSError, ValueError):
+            pass
+        photos = find_photos(views, featured, before)
+        if photos is not None:  # None: Commons unreachable, the photos from the last build stay
             write(os.path.join(out, 'photos.json'), {'built': built, 'p': photos})
     write(os.path.join(out, 'meta.json'), {
         'built': built, 'cell': CELL,
