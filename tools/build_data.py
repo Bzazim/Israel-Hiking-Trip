@@ -84,14 +84,20 @@ COMMONS_API = 'https://commons.wikimedia.org/w/api.php'
 USER_AGENT = 'IsraelHikingMap-data/1.0 (https://github.com/Bzazim/Israel-Hiking-Trip)'
 PHOTO_RADIUS = 1000       # metres around the viewpoint
 PHOTOS = 3                # per viewpoint
-# Photos of things rather than of the view.
-PHOTO_SKIP = re.compile(r'\b(signs?|signpost|plaques?|maps?|inscriptions?|memorial|monument|graves?|tomb|flowers?|insects?|'
-                        r'butterfly|moth|beetle|bee|spider|snail|lizard|gecko|snake|bird|fungus|mushroom|orchid|logo|'
-                        r'diagram|bench|toilets?|selfie|portrait|interior|inside|mosaic|museum|sculpture|statue)\b|'
-                        r'שלט|אנדרט|מצבה|פרח|חרק|פרפר|ציפור|לטאה|נחש|מפה|פסל', re.I)
-# Words that say it is a view.
-PHOTO_VIEW = re.compile(r'\b(view|views|viewpoint|lookout|overlook|observation|panorama|panoramic|vista|landscape|scenery|'
-                        r'looking|seen from|from the)\b|נוף|תצפית|מבט|פנורמה|מצפה|מצפור', re.I)
+# Never the view from the ground: space and air photos, night skies, insides, plants, animals, food, signs.
+PHOTO_NEVER = re.compile(r'\bISS\d|view of earth|\b(night|milky way|stars|aerial|drone|interior|inside|inner|selfie|'
+                         r'portrait|diagram|logo|maps?|signs?|signpost|plaques?|inscriptions?|flowers?|insects?|butterfly|'
+                         r'moth|beetle|bee|spider|snail|lizard|gecko|snake|bird|fungus|mushroom|orchid|food|dish|meal|'
+                         r'radio|banner)\b|לילה|כוכבים|אוויר|שלט|מפה|פרח|חרק|פרפר|ציפור|לטאה|נחש|מאכל', re.I)
+# A thing at the place: left out unless the photo is said to be a view ("view from the tower").
+PHOTO_THING = re.compile(r'\b(memorial|monument|graves?|tomb|caves?|cistern|well|burial|stone|boundary|church|mosque|'
+                         r'synagogue|chapel|museum|sculpture|statue|mosaic|bench|toilets?|parking|playground|gondola|'
+                         r'lift|antenna|outpost|post|fortification|house|building|room|collection)\b|'
+                         r'אנדרט|מצבה|קבר|קבורה|מערה|מערת|מערות|\bבור\b|אבן|כנסי|מסגד|בית כנסת|פסל|חניון|מוזיאון|ספסל', re.I)
+# Words that say the photo is of the view, or taken at a viewpoint.
+PHOTO_VIEW = re.compile(r'\b(view|views|pano|panorama|panoramic|vista|landscape|scenery|looking|seen from|overlooking)\b|'
+                        r'נוף|פנורמה|מבט', re.I)
+PHOTO_PLACE = re.compile(r'\b(viewpoint|lookout|overlook|observation)\b|מצפה|מצפור|תצפית', re.I)
 SPECIES = re.compile(r'^File:[A-Z][a-z]+ [a-z]{3,}')  # "Anemone coronaria ...": a plant or animal
 
 
@@ -793,18 +799,20 @@ def photo_score(page):
     meta = ii.get('extmetadata') or {}
     text = ' '.join([page.get('title', ''), strip_html((meta.get('ImageDescription') or {}).get('value', '')),
                      strip_html((meta.get('ObjectName') or {}).get('value', ''))])
-    if PHOTO_SKIP.search(text):
-        return None
-    score = 0.0
     view = PHOTO_VIEW.search(text) is not None
+    if PHOTO_NEVER.search(text) or (PHOTO_THING.search(text) and not view):
+        return None
+    if SPECIES.search(page.get('title', '')) and not view:
+        return None  # "Anemone coronaria ...": a plant or animal
+    score = 0.0
     if view:
         score += 3
+    elif PHOTO_PLACE.search(text):
+        score += 1.5
     if ratio >= 2:
         score += 2  # a panorama
     if page.get('categories'):
         score += 2  # a Quality image or Featured picture
-    if SPECIES.search(page.get('title', '')) and not view:
-        score -= 3
     dist = ((page.get('coordinates') or [{}])[0]).get('dist')
     score -= (dist if dist is not None else PHOTO_RADIUS) / 250
     return score
