@@ -21,4 +21,5 @@ The map data in [`data/`](data/) comes from OpenStreetMap and is under the
 | Contour lines, route climb and height, view ranges | [Mapterhorn](https://mapterhorn.com/attribution), Copernicus GLO-30 DEM; backup: AWS Terrain Tiles | see Mapterhorn attribution |
 | Map library | [Leaflet](https://leafletjs.com) | BSD-2-Clause |
 | Map rotation | [leaflet-rotate](https://github.com/Raruto/leaflet-rotate) | GPL-3.0 |
+| Viewpoint photos | [Wikimedia Commons](https://commons.wikimedia.org), photographer and licence shown with each photo | each photo's own licence (mostly CC BY-SA) |
 | Font | [Rubik](https://fonts.google.com/specimen/Rubik) | SIL Open Font License |
