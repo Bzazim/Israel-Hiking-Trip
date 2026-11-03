@@ -760,7 +760,7 @@ def strip_html(v):
 COMMONS_PROBLEMS = Counter()   # what went wrong, for the build log
 _commons_lock = threading.Lock()
 _commons_last = [0.0]
-COMMONS_GAP = 0.3              # seconds between calls, whatever the number of threads
+COMMONS_GAP = 1.0              # seconds between calls: the location search is shared and easily busy
 
 
 def commons_problem(what):
@@ -796,8 +796,8 @@ def commons(params):
         if 'error' in d:
             code = d['error'].get('code', '?')
             commons_problem(f"{code}: {d['error'].get('info', '')[:150]}")
-            if code == 'maxlag' or 'rate' in code or 'limit' in code:
-                time.sleep(10 * (attempt + 1))
+            if code == 'maxlag' or 'rate' in code or 'limit' in code or 'busy' in code:
+                time.sleep(15 * (attempt + 1))  # e.g. cirrussearch-too-busy-error: "try again later"
                 continue
             return None
         return d
@@ -910,23 +910,30 @@ def find_photos(views, featured, before=None):
         for i in ids:
             picked[i] = chosen
     out, failed, late = {}, 0, 0
+    kept = {v['id']: [e for e in before.get(v['id'], []) if name_ok(e[0])] for v in views}
     if views and all(photos_near(v['s'][0] / Q, v['s'][1] / Q) is None for v in views[:3]):
-        print(f'photos: Wikimedia Commons not answering ({dict(COMMONS_PROBLEMS)}), photos not updated', flush=True)
-        return None
+        print(f'photos: Wikimedia Commons not answering ({dict(COMMONS_PROBLEMS)}); '
+              f'the photos from the last build stay, through the name checks', flush=True)
+        return {vid: e for vid, e in kept.items() if e}
     deadline = time.monotonic() + PHOTO_BUDGET
+    # Viewpoints with no photos yet first; the rest from a place that moves on each month, so that within the
+    # time allowed every viewpoint is searched again in turn.
+    have = [v for v in views if before.get(v['id'])]
+    turn = (datetime.now(timezone.utc).month * 397) % len(have) if have else 0
+    views = [v for v in views if not before.get(v['id'])] + have[turn:] + have[:turn]
 
     def one(v):
         if time.monotonic() > deadline:
             return v['id'], 'late'
         return v['id'], photos_near(v['s'][0] / Q, v['s'][1] / Q)
-    with ThreadPoolExecutor(2) as ex:
+    with ThreadPoolExecutor(1) as ex:
         for vid, found in ex.map(one, views):
             if found is None or found == 'late':
                 if found is None:
                     failed += 1
                 else:
                     late += 1
-                found = [e for e in before.get(vid, []) if name_ok(e[0])]
+                found = kept.get(vid, [])
             mine = picked.get(vid, [])
             names = {e[0] for e in mine}
             got = (mine + [e for e in found if e[0] not in names])[:PHOTOS]
@@ -1037,8 +1044,7 @@ def main(pbf, out):
         except (OSError, ValueError):
             pass
         photos = find_photos(views, featured, before)
-        if photos is not None:  # None: Commons unreachable, the photos from the last build stay
-            write(os.path.join(out, 'photos.json'), {'built': built, 'p': photos})
+        write(os.path.join(out, 'photos.json'), {'built': built, 'p': photos})
     write(os.path.join(out, 'meta.json'), {
         'built': built, 'cell': CELL,
         'hike': sorted(f.hike), 'topo': sorted(f.topo)
