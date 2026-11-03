@@ -332,6 +332,21 @@ a.btn { display: block; text-align: center; text-decoration: none; }
 .cp-sunrise { stroke: #E0A800; }
 .cp-lbl { font: 600 11px "Rubik", sans-serif; fill: var(--ink); text-anchor: middle; dominant-baseline: central; }
 .cp-km { font: 9px "Rubik", sans-serif; fill: var(--muted); text-anchor: middle; }
+/* Viewpoint photos: a strip that scrolls sideways, and a dialog for one photo */
+.vd-photos { display: flex; gap: 8px; overflow-x: auto; margin: 12px -16px 0; padding: 0 16px 2px; scroll-snap-type: x mandatory; scrollbar-width: thin; }
+.vd-photos figure { flex: none; width: 230px; margin: 0; scroll-snap-align: start; }
+.vd-photos button { display: block; width: 100%; height: 150px; padding: 0; border: 0; border-radius: 10px; overflow: hidden; background: var(--chip-bg); cursor: zoom-in; }
+.vd-photos img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.vd-photos figcaption, .pb-credit { margin: 3px 0 0; font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vd-photos figcaption a, .pb-credit a { color: inherit; }
+.photo-box {
+  width: min(960px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); box-sizing: border-box; margin: auto; padding: 12px;
+  border: 0; border-radius: 16px; background: var(--panel); color: var(--ink); box-shadow: 0 10px 40px rgba(0, 0, 0, .35);
+}
+.photo-box::backdrop { background: rgba(10, 15, 12, .7); }
+.photo-box img { display: block; width: 100%; max-height: calc(100dvh - 120px); object-fit: contain; border-radius: 10px; background: var(--chip-bg); }
+.photo-box .news-foot { margin-top: 10px; }
+.pb-credit { margin: 0; flex: 1; min-width: 0; font-size: 12.5px; white-space: normal; }
 .pop-link { display: block; margin-top: 8px; border: 0; background: none; padding: 2px 0; color: #56662F; font: 500 14px "Rubik", sans-serif; cursor: pointer; }
 
 .banner {
@@ -650,6 +665,8 @@ a.btn { display: block; text-align: center; text-decoration: none; }
         <h2 class="fd-title"><span class="vp-dot" aria-hidden="true"></span><span id="vd-name"></span></h2>
         <p class="fd-sub" id="vd-sub"></p>
         <p class="fd-desc" id="vd-desc" hidden></p>
+        <div class="vd-photos" id="vd-photos" hidden></div>
+        <p class="hint" id="vd-photo-note" hidden>תמונות מוויקישיתוף שצולמו ליד התצפית. הקש על תמונה כדי להגדיל אותה.</p>
         <div class="vd-view">
           <svg class="vd-compass" id="vd-compass" viewBox="0 0 160 160" role="img" aria-labelledby="vd-sentence"></svg>
           <p class="vd-sentence" id="vd-sentence"></p>
@@ -697,9 +714,10 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
 </script>
 
 <!-- What's new: edit the text here and raise data-version, and everyone sees it again, also those who ticked "don't show". -->
-<dialog class="news" id="news" data-version="7" aria-labelledby="news-title">
+<dialog class="news" id="news" data-version="8" aria-labelledby="news-title">
   <h2 id="news-title">מה חדש?</h2>
   <ol>
+    <li>תמונות בדף של כל תצפית, כדי לראות איך הנוף נראה. בחיפוש "קרוב אליי" המרחקים מדויקים יותר, נמדדים לנקודה הקרובה בשביל וממוינים מהקרוב לרחוק</li>
     <li>תצפיות: בלשונית מסלולים אפשר לחפש תצפיות לפי שקיעה או זריחה, סוג נוף ואיך מגיעים, ולראות לאן ועד כמה רחוק רואים מכל אחת. התצפיות מסומנות גם על המפה ובדף של כל מסלול</li>
     <li>לשונית מסלולים: בוחרים אורך, זמן, קושי, אזור ועונה, ומקבלים המלצות על שבילים מסומנים עם טיפוס, זמן הליכה ומים בדרך</li>
     <li>בניית ציר הליכה</li>
@@ -711,6 +729,10 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     <label><input type="checkbox" id="news-hide">לא להציג שוב עד העדכון הבא</label>
     <button type="button" class="btn primary" id="news-ok">הבנתי</button>
   </div>
+</dialog>
+<dialog class="photo-box" id="photo-box" aria-label="תמונה">
+  <img id="pb-img" alt="">
+  <div class="news-foot"><p class="pb-credit" id="pb-credit"></p><button type="button" class="btn primary" id="pb-close">סגירה</button></div>
 </dialog>
 <script>
 (function () {
@@ -2389,7 +2411,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     const mins = Math.max(5, Math.round(h * 60 / 5) * 5), hh = Math.floor(mins / 60), mm = mins % 60;
     return hh && mm ? hh + ':' + pad(mm, 2) + ' ש׳' : hh ? hh + ' ש׳' : mm + ' דק׳';
   }
-  const fmtKm = (km) => (km < 10 ? km.toFixed(1) : Math.round(km)) + ' ק״מ';
+  const fmtKm = (km) => km < 1 ? Math.max(10, Math.round(km * 100) * 10) + ' מ׳' : (km < 10 ? km.toFixed(1) : Math.round(km)) + ' ק״מ';
 
   // Everything the finder needs about one trail, worked out from the build's facts.
   function deriveRoute(r, f) {
@@ -2412,7 +2434,26 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
       : water || (r.hi || 0) >= 800 ? ['winter', 'spring', 'summer', 'autumn'] : ['winter', 'spring', 'autumn'];
     const shape = f && f.loop != null ? (f.loop ? 0 : 1) : r.sh;
     const family = f && f.family != null ? f.family : !bike && diff === 1 && (r.st || 0) < 25;
-    return { r, f, id: r.id, name: r.n, kind: r.k, lat, lon, km, up: has ? up : null, dn: has ? dn : null, hours, diff, region, water, seasons, shape, family, car: r.car === 1 };
+    const pts = decodePts(r.p) || [[lat, lon]];
+    return { r, f, id: r.id, name: r.n, kind: r.k, lat, lon, km, up: has ? up : null, dn: has ? dn : null, hours, diff, region, water, seasons, shape, family, car: r.car === 1, pts };
+  }
+  // Points along the trail every ~500 m (routes.json 'p'): 1e-4 degrees, as [lat0, lon0, dlat1, dlon1, ...].
+  function decodePts(p) {
+    if (!p || p.length < 2) return null;
+    let y = p[0], x = p[1];
+    const out = [[y / 1e4, x / 1e4]];
+    for (let i = 2; i < p.length; i += 2) { y += p[i]; x += p[i + 1]; out.push([y / 1e4, x / 1e4]); }
+    return out;
+  }
+  // Straight-line kilometres from a point to the nearest of a list of points.
+  function nearestKm(ref, pts) {
+    const k = Math.cos(ref.lat * D2R);
+    let best = Infinity;
+    for (const [y, x] of pts) {
+      const dy = y - ref.lat, dx = (x - ref.lng) * k, d = dy * dy + dx * dx;
+      if (d < best) best = d;
+    }
+    return Math.sqrt(best) * 111.195;
   }
 
   function loadRoutes() {
@@ -2475,9 +2516,11 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
   function evaluate(x, ref, view) {
     if (x.kind !== F.kind) return null;
     if (x.km < 0.8 && !x.f) return null; // bits of trail, not walks
-    const dist = ref ? map.distance(ref, [x.lat, x.lon]) / 1000 : null;
+    // From the walker, the distance is to the nearest part of the trail (a long trail can start far away
+    // and still pass nearby); "in the map area" is any part of the trail on the screen.
+    const dist = ref ? nearestKm(ref, x.pts) : null;
     if (F.where === 'me' && (dist == null || dist > +F.radius)) return null;
-    if (F.where === 'view' && !view.contains([x.lat, x.lon])) return null;
+    if (F.where === 'view' && !x.pts.some((p) => view.contains(p))) return null;
     if (REGION_NAME[F.where] && x.region !== F.where) return null;
     const why = [];
     let out = false;
@@ -2497,8 +2540,8 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     if (F.car && !x.car) check(1, 'אין כביש סלול ליד ההתחלה');
     if (F.view && !(x.r.vp && x.r.vp.length)) check(1, 'בלי תצפית בדרך');
     if (out || why.length > 1) return null;
-    // Nearer first; a hand-picked hike counts as if it were nearer.
-    const score = (dist == null ? 0 : dist) * (x.f ? 0.5 : 1) + (x.f ? -1 : 0);
+    // Near me: strictly by distance. Elsewhere: nearer the map centre first, a hand-picked hike as if nearer.
+    const score = F.where === 'me' ? dist : (dist == null ? 0 : dist) * (x.f ? 0.5 : 1) + (x.f ? -1 : 0);
     return { x, why, dist, score };
   }
   function runMatch() {
@@ -2547,19 +2590,35 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     renderFindStatus();
     refreshCount();
   }
+  // The walker's position for "near me": from the GPS tab when it is tracking, else asked for here with
+  // high accuracy, and asked again when older than two minutes. Resolves when there is an answer.
+  let myAcc = null, myTime = 0, locateP = null;
   function locateMe() {
-    if (fix) { myPos = L.latLng(fix.lat, fix.lng); return; }
-    if (locating || !navigator.geolocation) return;
+    const setMe = (lat, lng, acc) => { myPos = L.latLng(lat, lng); myAcc = acc; myTime = Date.now(); };
+    if (fix && Date.now() - fix.t < 60000) { setMe(fix.lat, fix.lng, fix.acc); return Promise.resolve(); }
+    if (myPos && Date.now() - myTime < 120000) return Promise.resolve();
+    if (!navigator.geolocation) return Promise.resolve();
+    if (locateP) return locateP;
     locating = true;
-    const done = () => { locating = false; renderFindStatus(); refreshCount(); renderViewStatus(); refreshViewCount(); };
-    navigator.geolocation.getCurrentPosition((p) => {
-      myPos = L.latLng(p.coords.latitude, p.coords.longitude);
-      done();
-    }, () => {
-      toast('לא הצלחתי לאתר את המיקום שלך. אפשר לבחור אזור במקום.');
-      done();
-    }, { enableHighAccuracy: false, timeout: 20000, maximumAge: 600000 });
+    renderFindStatus();
+    renderViewStatus();
+    locateP = new Promise((resolve) => {
+      navigator.geolocation.getCurrentPosition((p) => { setMe(p.coords.latitude, p.coords.longitude, p.coords.accuracy); resolve(); }, () => {
+        if (!myPos) toast('לא הצלחתי לאתר את המיקום שלך. אפשר לבחור אזור במקום.');
+        resolve();
+      }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 60000 });
+    }).then(() => {
+      locating = false;
+      locateP = null;
+      renderFindStatus();
+      refreshCount();
+      renderViewStatus();
+      refreshViewCount();
+    });
+    return locateP;
   }
+  // "עד 25 ק״מ ממך, בקו אווירי", and a word when the position is rough.
+  const nearMeText = (radius) => 'עד ' + radius + ' ק״מ ממך, בקו אווירי' + (myAcc > 1000 ? ' (המיקום שלך משוער, בטווח של כ־' + fmtDist(myAcc) + ')' : '');
   [['f-where', 'where'], ['f-radius', 'radius'], ['f-len', 'len'], ['f-time', 'time'], ['f-climb', 'climb'], ['f-season', 'season']].forEach(([id, k]) => {
     $(id).addEventListener('change', (e) => { F[k] = e.target.value; changed(); });
   });
@@ -2572,8 +2631,8 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
   }));
   document.querySelectorAll('#f-extra button').forEach((b) => b.addEventListener('click', () => { F[b.dataset.v] = !F[b.dataset.v]; changed(); }));
   $('f-reset').addEventListener('click', () => { Object.assign(F, FIND_DEFAULT, { diff: [] }); renderForm(); changed(); });
-  $('f-go').addEventListener('click', () => {
-    if (F.where === 'me' && !myPos) { locateMe(); renderFindStatus(); return; }
+  $('f-go').addEventListener('click', async () => {
+    if (F.where === 'me') { await locateMe(); if (!myPos) return; }
     found = runMatch();
     shownCount = PAGE;
     findLayer.clearLayers();
@@ -2635,10 +2694,10 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     if (tags.length) { const t = document.createElement('span'); t.className = 'rt-tags'; t.textContent = tags.join(' · '); main.append(t); }
     if (m.why.length) { const w = document.createElement('span'); w.className = 'rt-why'; w.textContent = m.why.join(' · '); main.append(w); }
     b.append(bl, main);
-    if (m.dist != null && F.where !== 'all' && !REGION_NAME[F.where]) {
+    if (m.dist != null && F.where === 'me') {
       const d = document.createElement('span');
       d.className = 'rt-dist';
-      d.textContent = fmtKm(m.dist) + (F.where === 'me' ? ' ממך' : '');
+      d.textContent = fmtKm(m.dist) + ' ממך';
       b.append(d);
     }
     b.addEventListener('click', () => showDetail(x));
@@ -2648,8 +2707,8 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
   function renderResults() {
     const { full, near } = found;
     $('fr-title').textContent = full.length ? full.length + ' מסלולים מתאימים' : 'אין התאמה מלאה';
-    const where = F.where === 'me' ? 'עד ' + F.radius + ' ק״מ ממך' : F.where === 'view' ? 'באזור שמוצג במפה' : REGION_NAME[F.where] || 'בכל הארץ';
-    $('fr-sub').textContent = (F.kind === 'm' ? 'אופני שטח' : 'הליכה') + ', ' + where + '. ' + (full.length ? 'המומלצים והקרובים ראשונים.' : '');
+    const where = F.where === 'me' ? nearMeText(F.radius) : F.where === 'view' ? 'באזור שמוצג במפה' : REGION_NAME[F.where] || 'בכל הארץ';
+    $('fr-sub').textContent = (F.kind === 'm' ? 'אופני שטח' : 'הליכה') + ', ' + where + '. ' + (!full.length ? '' : F.where === 'me' ? 'הקרובים ראשונים.' : 'המומלצים והקרובים ראשונים.');
     $('fr-list').replaceChildren(...full.slice(0, shownCount).map(routeItem));
     const nearShown = full.length < 10 ? near.slice(0, 10) : [];
     $('fr-near').replaceChildren(...nearShown.map(routeItem));
@@ -2726,6 +2785,10 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     notes.push(x.car ? '🚗 נקודת ההתחלה ליד כביש סלול או חניה' : x.r.car === 2 ? 'הכביש הסלול הקרוב לא בנקודת ההתחלה אלא לאורך השביל' : 'אין כביש סלול ליד נקודת ההתחלה, ייתכן שצריך דרך עפר');
     if (x.shape === 1) notes.push('מסלול קווי: הסוף רחוק מההתחלה, צריך הסעה או חזרה באותה דרך');
     notes.push('עונה מומלצת: ' + x.seasons.map((s) => SEASON_NAME[s]).join(', ') + (x.family ? ' · מתאים למשפחות' : ''));
+    if (myPos) {
+      const near = nearestKm(myPos, x.pts), start = map.distance(myPos, [x.lat, x.lon]) / 1000;
+      notes.push('📍 ' + fmtKm(near) + ' ממך בקו אווירי' + (start - near > 1 ? ' לנקודה הקרובה בשביל, ' + fmtKm(start) + ' לנקודת ההתחלה' : ''));
+    }
     if (x.r.vp && x.r.vp.length) notes.push(viewLinks('🔭 תצפיות בדרך: ', x.r.vp, { label: 'חזרה למסלול', fn: () => openRouteById(x.id) }));
     $('fd-notes').replaceChildren(...notes.map((t) => { const li = document.createElement('li'); li.append(t); return li; }));
     const ll = x.lat.toFixed(5) + ',' + x.lon.toFixed(5);
@@ -2856,7 +2919,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     if (VF.reach) check(x.maxReach >= +VF.reach ? 0 : x.maxReach >= +VF.reach * 0.6 ? 1 : 2, 'רואים עד ' + reachText(x.maxReach));
     if (out || why.length > 1) return null;
     // Nearer first; hand-picked ones and wide views count as if nearer.
-    const score = (dist == null ? 0 : dist) * (x.f ? 0.5 : 1) - (x.f ? 1 : 0) - x.quality / 20;
+    const score = VF.where === 'me' ? dist : (dist == null ? 0 : dist) * (x.f ? 0.5 : 1) - (x.f ? 1 : 0) - x.quality / 20;
     return { x, why, dist, score };
   }
   function runViewMatch() {
@@ -2911,8 +2974,8 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     viewChanged();
   }));
   $('v-reset').addEventListener('click', () => { Object.assign(VF, VIEW_DEFAULT, { land: [] }); renderViewForm(); viewChanged(); });
-  $('v-go').addEventListener('click', () => {
-    if (VF.where === 'me' && !myPos) { locateMe(); renderViewStatus(); return; }
+  $('v-go').addEventListener('click', async () => {
+    if (VF.where === 'me') { await locateMe(); if (!myPos) return; }
     vFound = runViewMatch();
     vShown = PAGE;
     renderViewResults();
@@ -2945,10 +3008,10 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     main.append(t);
     if (m.why.length) { const w = document.createElement('span'); w.className = 'rt-why'; w.textContent = m.why.join(' · '); main.append(w); }
     b.append(ic, main);
-    if (m.dist != null && (VF.where === 'me' || VF.where === 'view')) {
+    if (m.dist != null && VF.where === 'me') {
       const d = document.createElement('span');
       d.className = 'rt-dist';
-      d.textContent = fmtKm(m.dist) + (VF.where === 'me' ? ' ממך' : '');
+      d.textContent = fmtKm(m.dist) + ' ממך';
       b.append(d);
     }
     b.addEventListener('click', () => showViewDetail(x));
@@ -2958,8 +3021,8 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
   function renderViewResults() {
     const { full, near } = vFound;
     $('vr-title').textContent = full.length ? full.length + ' תצפיות מתאימות' : 'אין התאמה מלאה';
-    const where = VF.where === 'me' ? 'עד ' + VF.radius + ' ק״מ ממך' : VF.where === 'view' ? 'באזור שמוצג במפה' : REGION_NAME[VF.where] || 'בכל הארץ';
-    $('vr-sub').textContent = where + '. ' + (full.length ? 'המומלצות, הקרובות ובעלות הנוף הרחב ראשונות.' : '');
+    const where = VF.where === 'me' ? nearMeText(VF.radius) : VF.where === 'view' ? 'באזור שמוצג במפה' : REGION_NAME[VF.where] || 'בכל הארץ';
+    $('vr-sub').textContent = where + '. ' + (!full.length ? '' : VF.where === 'me' ? 'הקרובות ראשונות.' : 'המומלצות, הקרובות ובעלות הנוף הרחב ראשונות.');
     $('vr-list').replaceChildren(...full.slice(0, vShown).map(viewItem));
     const nearShown = full.length < 10 ? near.slice(0, 10) : [];
     $('vr-near').replaceChildren(...nearShown.map(viewItem));
@@ -3016,10 +3079,10 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     const span = document.createElement('span');
     span.append(prefix);
     loadViews().then(() => {
+      const known = ids.filter((id) => viewsById.has(id)), MAX = 8;
       let first = true;
-      ids.forEach((id) => {
+      known.slice(0, MAX).forEach((id) => {
         const v = viewsById.get(id);
-        if (!v) return;
         if (!first) span.append(', ');
         first = false;
         const b = document.createElement('button');
@@ -3029,6 +3092,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
         b.addEventListener('click', () => openViewById(id, back));
         span.append(b);
       });
+      if (known.length > MAX) span.append(' ועוד ' + (known.length - MAX));
     });
     return span;
   }
@@ -3071,6 +3135,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
       : x.road != null ? '🥾 ' + fmtDist(x.road) + ' מהכביש הסלול הקרוב: מגיעים בטיול או בדרך עפר'
       : '🥾 רחוק יותר מ־3 ק״מ מכביש סלול: מגיעים בטיול או בדרך עפר');
     if (x.land.length) notes.push('נוף: ' + x.land.map((l) => LAND_NAME[l]).join(', '));
+    if (myPos) notes.push('📍 ' + fmtKm(map.distance(myPos, [x.lat, x.lon]) / 1000) + ' ממך בקו אווירי');
     const li = document.createElement('li');
     li.append(routeLinks('🥾 שבילים שעוברים כאן: ', x));
     $('vd-notes').replaceChildren(...notes.map((t) => { const e = document.createElement('li'); e.append(t); return e; }), li);
@@ -3078,6 +3143,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     $('vd-waze').href = 'https://waze.com/ul?ll=' + ll + '&navigate=yes';
     $('vd-gmaps').href = 'https://www.google.com/maps/dir/?api=1&destination=' + ll;
     vCurrent = x;
+    renderPhotos(x);
     showFindView('detail');
   }
   $('vd-back').addEventListener('click', () => {
@@ -3093,6 +3159,62 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
       showViewDetail(x, back || { label: 'לחיפוש תצפיות', fn: () => showFindView('form') });
     });
   }
+
+  // ---------- Viewpoint photos ----------
+  // data/photos.json, from the build: up to three Wikimedia Commons photos taken near each viewpoint, picked to
+  // show the view, with the photographer and licence, which are shown with every photo as the licences ask.
+  // Images come from Commons at the size needed (Special:FilePath with a width).
+  let photosP = null;
+  const getPhotos = () => photosP || (photosP = getData('photos.json').then((d) => d.p || {}).catch(() => { photosP = null; return {}; }));
+  const commonsImg = (name, w) => 'https://commons.wikimedia.org/wiki/Special:FilePath/' + encodeURIComponent(name) + '?width=' + w;
+  const commonsPage = (name) => 'https://commons.wikimedia.org/wiki/File:' + encodeURIComponent(name.replace(/ /g, '_'));
+  function creditLink(name, author, lic) {
+    const a = document.createElement('a');
+    a.href = commonsPage(name);
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.textContent = 'צילום: ' + (author || 'ויקישיתוף') + (lic ? ' · ' + lic : '') + ' · ויקישיתוף';
+    return a;
+  }
+  function renderPhotos(x) {
+    const box = $('vd-photos'), note = $('vd-photo-note');
+    box.hidden = note.hidden = true;
+    box.replaceChildren();
+    box.scrollLeft = 0;
+    getPhotos().then((all) => {
+      if (vCurrent !== x) return; // another viewpoint was opened meanwhile
+      const list = all[x.id] || [];
+      list.forEach(([name, author, lic]) => {
+        const fig = document.createElement('figure');
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.setAttribute('aria-label', 'הגדלת התמונה');
+        const img = document.createElement('img');
+        img.loading = 'lazy';
+        img.decoding = 'async';
+        img.alt = 'צילום ליד ' + x.name;
+        img.src = commonsImg(name, 640);
+        img.addEventListener('error', () => { fig.remove(); if (!box.children.length) box.hidden = note.hidden = true; });
+        b.append(img);
+        b.addEventListener('click', () => openPhoto(name, author, lic, x.name));
+        const cap = document.createElement('figcaption');
+        cap.append(creditLink(name, author, lic));
+        fig.append(b, cap);
+        box.append(fig);
+      });
+      box.hidden = note.hidden = !list.length;
+    });
+  }
+  function openPhoto(name, author, lic, where) {
+    const d = $('photo-box');
+    $('pb-img').src = commonsImg(name, 1280);
+    $('pb-img').alt = 'צילום ליד ' + where;
+    $('pb-credit').replaceChildren(creditLink(name, author, lic));
+    if (typeof d.showModal === 'function') d.showModal(); else window.open(commonsPage(name), '_blank');
+  }
+  $('pb-close').addEventListener('click', () => $('photo-box').close());
+  $('photo-box').addEventListener('click', (e) => { if (e.target === $('photo-box')) $('photo-box').close(); });
+  $('photo-box').addEventListener('close', () => { $('pb-img').removeAttribute('src'); });
 
   // ---------- Viewpoints on the map ----------
   addPane('viewpoints', 372, true);

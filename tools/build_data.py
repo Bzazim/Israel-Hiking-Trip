@@ -12,6 +12,8 @@ Writes, under the output folder:
                      shape, start point, water on the way, road access, viewpoints on it (see route_facts)
   views.json         viewpoints (marked ones, and named peaks with a wide view): how far the view
                      reaches in each direction, how to get there, what kind of land is in sight (see view_facts)
+  photos.json        up to three photos of the view from each viewpoint, from Wikimedia Commons, with the
+                     photographer and licence (see find_photos)
 
 Coordinates are integers in 1e-5 degrees (about 1 m). A line is stored as
 [lat0, lon0, dlat1, dlon1, ...]: its first point, then the step to each next point.
@@ -28,6 +30,7 @@ import os
 import re
 import sys
 import time
+import urllib.parse
 import urllib.request
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
@@ -75,6 +78,21 @@ PEAK_BY_VIEWPOINT = 400   # metres: a peak this close to a marked viewpoint is t
 NOT_A_VIEW = re.compile(r'شركة|مكتب|منزل|محل |مطبخ|صالون|صالة|كفتيريا|مسبح|دوار|شارع|عمارة|فيلا|خيمة|كرفان|ديوان|غاز |'
                         r'مجمع|مخيم|الأمن|شبكة|ملعب|\bHome\b|Headquarters')
 PEAK_OPEN = (20, 18)      # a named peak counts as a viewpoint when it sees 20 km or more in half the directions
+
+# Viewpoint photos, from Wikimedia Commons: freely licensed, and searchable by where they were taken.
+COMMONS_API = 'https://commons.wikimedia.org/w/api.php'
+USER_AGENT = 'IsraelHikingMap-data/1.0 (https://github.com/Bzazim/Israel-Hiking-Trip)'
+PHOTO_RADIUS = 1000       # metres around the viewpoint
+PHOTOS = 3                # per viewpoint
+# Photos of things rather than of the view.
+PHOTO_SKIP = re.compile(r'\b(signs?|signpost|plaques?|maps?|inscriptions?|memorial|monument|graves?|tomb|flowers?|insects?|'
+                        r'butterfly|moth|beetle|bee|spider|snail|lizard|gecko|snake|bird|fungus|mushroom|orchid|logo|'
+                        r'diagram|bench|toilets?|selfie|portrait|interior|inside|mosaic|museum|sculpture|statue)\b|'
+                        r'שלט|אנדרט|מצבה|פרח|חרק|פרפר|ציפור|לטאה|נחש|מפה|פסל', re.I)
+# Words that say it is a view.
+PHOTO_VIEW = re.compile(r'\b(view|views|viewpoint|lookout|overlook|observation|panorama|panoramic|vista|landscape|scenery|'
+                        r'looking|seen from|from the)\b|נוף|תצפית|מבט|פנורמה|מצפה|מצפור', re.I)
+SPECIES = re.compile(r'^File:[A-Z][a-z]+ [a-z]{3,}')  # "Anemone coronaria ...": a plant or animal
 
 
 def mark_of(t):
@@ -547,6 +565,19 @@ def route_facts(rec, way_ids, facts, roads, water):
         out['w'] = sorted(found.values(), key=lambda w: (w[2], not w[3]))[:12]
         out['wn'] = len(found)
     out['c'] = sorted({c for f in ways for c in cells_of(f.pts)})
+    # Points along the trail every ~500 m (1 km on long trails), for the distance from the walker to the nearest
+    # part of the trail. In 1e-4 degrees (~10 m), as [lat0, lon0, dlat1, dlon1, ...].
+    spacing = 1000 if km > 50 else 500
+    pts, last = [], None
+    for f in ways:
+        for i, s in enumerate(f.samples):
+            if last is None or metres(last, s) >= spacing or (i == len(f.samples) - 1 and f is ways[-1]):
+                pts.append((round(s[0] * 1e4), round(s[1] * 1e4)))
+                last = s
+    enc = [pts[0][0], pts[0][1]]
+    for (y0, x0), (y1, x1) in zip(pts, pts[1:]):
+        enc += [y1 - y0, x1 - x0]
+    out['p'] = enc
     return out
 
 
@@ -707,6 +738,154 @@ def build_views(f, dem):
     return out
 
 
+# ---------- Viewpoint photos (Wikimedia Commons) ----------
+
+def strip_html(v):
+    v = re.sub(r'<[^>]+>', ' ', v or '')
+    v = re.sub(r'&nbsp;|&#160;', ' ', v)
+    v = re.sub(r'&amp;', '&', v)
+    v = re.sub(r'&[a-z]+;|&#\d+;', '', v)
+    return ' '.join(v.split())
+
+
+def commons(params):
+    """One Commons API call, politely: a clear user agent, maxlag, and a few tries with pauses."""
+    q = urllib.parse.urlencode({**params, 'format': 'json', 'formatversion': 2, 'maxlag': 5})
+    req = urllib.request.Request(COMMONS_API + '?' + q, headers={'User-Agent': USER_AGENT})
+    for attempt in range(4):
+        try:
+            with urllib.request.urlopen(req, timeout=40) as r:
+                d = json.load(r)
+        except Exception:  # noqa: BLE001
+            time.sleep(2 + 3 * attempt)
+            continue
+        if 'error' in d:
+            if d['error'].get('code') == 'maxlag':
+                time.sleep(5 + 5 * attempt)
+                continue
+            return None
+        return d
+    return None
+
+
+def photo_entry(page):
+    """[file name, photographer, licence, width/height] of a Commons file page, or None."""
+    ii = (page.get('imageinfo') or [{}])[0]
+    meta = ii.get('extmetadata') or {}
+    name = page.get('title', '')[len('File:'):]
+    if not name:
+        return None
+    author = strip_html((meta.get('Artist') or {}).get('value', ''))[:60]
+    lic = strip_html((meta.get('LicenseShortName') or {}).get('value', ''))[:30]
+    w, h = ii.get('width') or 0, ii.get('height') or 1
+    return [name, author, lic, round(w / h, 2)]
+
+
+def photo_score(page):
+    """How likely a photo near a viewpoint shows its view; None if it surely doesn't."""
+    ii = (page.get('imageinfo') or [{}])[0]
+    w, h = ii.get('width') or 0, ii.get('height') or 0
+    if ii.get('mime') not in ('image/jpeg', 'image/png', 'image/webp', 'image/tiff') or w < 800 or h < 400:
+        return None
+    ratio = w / h
+    if ratio < 1.15:  # upright or square photos are seldom of the view
+        return None
+    meta = ii.get('extmetadata') or {}
+    text = ' '.join([page.get('title', ''), strip_html((meta.get('ImageDescription') or {}).get('value', '')),
+                     strip_html((meta.get('ObjectName') or {}).get('value', ''))])
+    if PHOTO_SKIP.search(text):
+        return None
+    score = 0.0
+    view = PHOTO_VIEW.search(text) is not None
+    if view:
+        score += 3
+    if ratio >= 2:
+        score += 2  # a panorama
+    if page.get('categories'):
+        score += 2  # a Quality image or Featured picture
+    if SPECIES.search(page.get('title', '')) and not view:
+        score -= 3
+    dist = ((page.get('coordinates') or [{}])[0]).get('dist')
+    score -= (dist if dist is not None else PHOTO_RADIUS) / 250
+    return score
+
+
+def photos_near(lat, lon):
+    d = commons({
+        'action': 'query', 'generator': 'geosearch', 'ggsnamespace': 6, 'ggscoord': f'{lat:.5f}|{lon:.5f}',
+        'ggsradius': PHOTO_RADIUS, 'ggslimit': 40,
+        'prop': 'imageinfo|coordinates|categories', 'iiprop': 'size|mime|extmetadata',
+        'iiextmetadatafilter': 'Artist|LicenseShortName|ImageDescription|ObjectName', 'iiextmetadatalanguage': 'en',
+        'codistancefrompoint': f'{lat:.5f}|{lon:.5f}', 'colimit': 'max', 'cllimit': 'max',
+        'clcategories': 'Category:Quality images|Category:Featured pictures on Wikimedia Commons',
+    })
+    if d is None:
+        return None
+    scored = []
+    for page in (d.get('query') or {}).get('pages', []):
+        sc = photo_score(page)
+        if sc is not None and sc > -3:
+            scored.append((sc, page))
+    scored.sort(key=lambda t: -t[0])
+    out, per_author = [], Counter()
+    for sc, page in scored:
+        e = photo_entry(page)
+        if e and per_author[e[1]] < 2:  # not all three by one photographer
+            per_author[e[1]] += 1
+            out.append(e)
+        if len(out) == PHOTOS:
+            break
+    return out
+
+
+def chosen_photos(names):
+    """Hand-picked files (featured.json 'photos'), with their photographer and licence."""
+    d = commons({'action': 'query', 'titles': '|'.join('File:' + n for n in names), 'prop': 'imageinfo',
+                 'iiprop': 'size|extmetadata', 'iiextmetadatafilter': 'Artist|LicenseShortName'})
+    pages = {p.get('title'): p for p in ((d or {}).get('query') or {}).get('pages', []) if not p.get('missing')}
+    return [e for e in (photo_entry(pages[t]) for t in ('File:' + n.replace('_', ' ') for n in names) if t in pages) if e]
+
+
+def find_photos(views, featured):
+    """Up to PHOTOS photos per viewpoint: hand-picked ones first (featured.json), then the best found nearby."""
+    picked = {}
+    for f in (featured or {}).get('views', []):
+        if not f.get('photos'):
+            continue
+        if f.get('osm'):
+            ids = [v['id'] for v in views if v['n'] == f['osm'] and not v.get('nn')]
+        elif f.get('near'):
+            best = min(views, key=lambda v: metres(f['near'], (v['s'][0] / Q, v['s'][1] / Q)), default=None)
+            ids = [best['id']] if best and metres(f['near'], (best['s'][0] / Q, best['s'][1] / Q)) <= 500 else []
+        else:
+            ids = []
+        chosen = chosen_photos(f['photos'])
+        for i in ids:
+            picked[i] = chosen
+    out, failed = {}, 0
+    if views and photos_near(views[0]['s'][0] / Q, views[0]['s'][1] / Q) is None:
+        print('photos: Wikimedia Commons unreachable, photos not updated', flush=True)
+        return out, len(views)
+
+    def one(v):
+        return v['id'], photos_near(v['s'][0] / Q, v['s'][1] / Q)
+    with ThreadPoolExecutor(3) as ex:
+        for vid, found in ex.map(one, views):
+            if found is None:
+                failed += 1
+                found = []
+            mine = picked.get(vid, [])
+            names = {e[0] for e in mine}
+            got = (mine + [e for e in found if e[0] not in names])[:PHOTOS]
+            if got:
+                out[vid] = got
+    print(f'photos: {len(out)} of {len(views)} viewpoints have photos, {sum(map(len, out.values()))} photos, '
+          f'{failed} searches failed', flush=True)
+    for vid in list(out)[:5]:
+        print('  e.g.', vid, [e[0] for e in out[vid]], flush=True)
+    return out, failed
+
+
 def link_views(routes, members, facts, views):
     """Lists on each route the viewpoints within VIEW_ON_TRAIL metres of it, in the order they come."""
     grid = {}
@@ -789,6 +968,16 @@ def main(pbf, out):
     link_views(routes, members, facts, views)
     write(os.path.join(out, 'routes.json'), {'built': built, 'r': routes})
     write(os.path.join(out, 'views.json'), {'built': built, 'dirs': VIEW_DIRS, 'v': views})
+    featured = None
+    try:
+        with open(os.path.join(out, 'featured.json'), encoding='utf-8') as fh:
+            featured = json.load(fh)
+    except (OSError, ValueError):
+        pass
+    if views and os.environ.get('NO_PHOTOS') != '1':
+        photos, failed = find_photos(views, featured)
+        if failed < len(views) / 2:  # Commons unreachable: keep the photos from the last build
+            write(os.path.join(out, 'photos.json'), {'built': built, 'p': photos})
     write(os.path.join(out, 'meta.json'), {
         'built': built, 'cell': CELL,
         'hike': sorted(f.hike), 'topo': sorted(f.topo)
