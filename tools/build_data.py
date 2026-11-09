@@ -143,14 +143,14 @@ def military_kind(t):
     """'base' for a base or army post, 'fire' for a firing zone, 'land' for other military land (a base or a firing
     zone, by its size; see MilitaryLand), None for anything else."""
     m = t.get('military')
+    if not m and t.get('landuse') != 'military':
+        return None  # the names below count only on military land: "קריית", "camp" are also towns and camps
     name = ' '.join(t.get(k) or '' for k in ('name', 'name:he', 'name:en'))
     if m in MILITARY_BASE or BASE_NAME.search(name):
         return 'base'
     if m in MILITARY_FIRE or FIRE_NAME.search(name):
         return 'fire'
-    if m or t.get('landuse') == 'military':
-        return 'land'
-    return None
+    return 'land'
 
 
 def military_tags(t):
