@@ -81,14 +81,22 @@ PEAK_BY_VIEWPOINT = 400   # metres: a peak this close to a marked viewpoint is t
 NOT_A_VIEW = re.compile(r'شركة|مكتب|منزل|محل |مطبخ|صالون|صالة|كفتيريا|مسبح|دوار|شارع|عمارة|فيلا|خيمة|كرفان|ديوان|غاز |'
                         r'مجمع|مخيم|الأمن|شبكة|ملعب|\bHome\b|Headquarters')
 PEAK_OPEN = (20, 18)      # a named peak counts as a viewpoint when it sees 20 km or more in half the directions
-# Only places a walker may go. A viewpoint inside military land (OpenStreetMap landuse=military, or military=*
-# for a base, a firing zone and the like) is left out, and so is one whose own tags close it. A named peak is only
-# our guess at a viewpoint, and many tops with a wide view are army posts, in use or abandoned, or stand in firing
-# zones, so a peak counts only when a marked trail reaches its top, or when it is on the hand-picked list.
-MILITARY_LAND = {'base', 'barracks', 'airfield', 'naval_base', 'training_area', 'range', 'danger_area',
-                 'checkpoint', 'office', 'ammunition', 'launchpad'}
+# Only places a walker may go. Military land in OpenStreetMap is of two sorts here. A base or an army post (named
+# so, tagged so, or a small area of landuse=military) is closed: no viewpoint inside it. A firing zone (tagged as a
+# danger or training area, named so, or a large unnamed area of landuse=military) is open to walkers only at set
+# times, mostly weekends and holidays: a viewpoint in one stays only when a marked trail reaches it or a paved road
+# passes right by, and is flagged ('fz') so that the app can say so. A viewpoint whose own tags close it is left out.
+# A named peak is only our guess at a viewpoint, and many tops with a wide view are army posts, in use or abandoned,
+# so a peak counts only when a marked trail reaches its top, or when it is on the hand-picked list.
+MILITARY_BASE = {'base', 'barracks', 'airfield', 'naval_base', 'range', 'checkpoint', 'office', 'ammunition',
+                 'launchpad', 'nuclear_explosion_site'}
+MILITARY_FIRE = {'danger_area', 'training_area'}
+BASE_NAME = re.compile(r'מחנה|בסיס|מוצב|מתקן|יחידת|קריית|בה"ד|בא"ח|\b(base|camp|barracks|air ?base|airfield)\b', re.I)
+FIRE_NAME = re.compile(r'שטח אש|\bfiring\b', re.I)
+FIRING_ZONE_KM2 = 10      # an unnamed area of landuse=military this large (its bounding box) is a firing zone
 CLOSED_ACCESS = {'no', 'private', 'military', 'forbidden'}
-PEAK_ON_TRAIL = 200       # metres from the top of a peak to the nearest marked trail
+ON_TRAIL = 200            # metres to the nearest marked trail, for a peak or a viewpoint in a firing zone
+FIRE_ROAD = 100           # metres to a paved road or car park, for a viewpoint in a firing zone
 
 # Viewpoint photos, from Wikimedia Commons: freely licensed, and searchable by where they were taken.
 COMMONS_API = 'https://commons.wikimedia.org/w/api.php'
@@ -132,13 +140,22 @@ def is_israel_trail(t):
 
 
 def military_kind(t):
-    """'fire' for a firing zone, 'base' for other military land, None for anything else."""
+    """'base' for a base or army post, 'fire' for a firing zone, 'land' for other military land (a base or a firing
+    zone, by its size; see MilitaryLand), None for anything else."""
     m = t.get('military')
-    if m == 'danger_area':
-        return 'fire'
-    if m in MILITARY_LAND or t.get('landuse') == 'military':
+    name = ' '.join(t.get(k) or '' for k in ('name', 'name:he', 'name:en'))
+    if m in MILITARY_BASE or BASE_NAME.search(name):
         return 'base'
+    if m in MILITARY_FIRE or FIRE_NAME.search(name):
+        return 'fire'
+    if m or t.get('landuse') == 'military':
+        return 'land'
     return None
+
+
+def military_tags(t):
+    """The tags of military land that say what it is, for the build log."""
+    return ' '.join(f'{k}={t.get(k)}' for k in ('landuse', 'military', 'name', 'name:en', 'access') if t.get(k))
 
 
 def closed(t):
@@ -217,7 +234,7 @@ class Routes(osmium.SimpleHandler):
         self.routes = []          # [name, mark, kind, israelTrail, relation id]
         self.members = []         # way ids of each route, in relation order
         self.way_routes = {}      # way id -> [route index]
-        self.military = []        # [kind, name, id] of military multipolygons
+        self.military = []        # [kind, tags, id] of military multipolygons
         self.mil_ways = {}        # way id -> [index in military]
 
     def relation(self, r):
@@ -225,7 +242,7 @@ class Routes(osmium.SimpleHandler):
         mil = military_kind(t) if t.get('type') == 'multipolygon' else None
         if mil:
             idx = len(self.military)
-            self.military.append([mil, t.get('name:he') or t.get('name') or '', f'r{r.id}'])
+            self.military.append([mil, military_tags(t), f'r{r.id}'])
             for m in r.members:
                 if m.type == 'w':
                     self.mil_ways.setdefault(m.ref, []).append(idx)
@@ -255,7 +272,7 @@ class Features(osmium.SimpleHandler):
         super().__init__()
         self.way_routes = way_routes
         self.mil_ways = mil_ways or {}
-        # military land: [kind, name, id, [lines]]; a multipolygon's lines are the ways it is drawn with
+        # military land: [kind, tags, id, [lines]]; a multipolygon's lines are the ways it is drawn with
         self.military = [m + [[]] for m in military]
         self.hike = {}            # cell -> list of [id, route idxs, coords]
         self.topo = {}            # cell -> {'t': [...], 'p': [...]}
@@ -341,7 +358,7 @@ class Features(osmium.SimpleHandler):
         if road:
             self.add_road(pts)
         if mil and len(pts) >= 4 and pts[0] == pts[-1]:
-            self.military.append([mil, w.tags.get('name:he') or w.tags.get('name') or '', f'w{w.id}', [pts]])
+            self.military.append([mil, military_tags(w.tags), f'w{w.id}', [pts]])
         for i in mil_rel or ():
             self.military[i][3].append(pts)
         if routes is None and kind is None:
@@ -737,24 +754,27 @@ class MilitaryLand:
     def __init__(self, areas):
         self.grid = {}
         self.count = Counter()
-        for kind, name, aid, lines in areas:
+        for kind, tags, aid, lines in areas:
             pts = [p for line in lines for p in line]
             if len(pts) < 4:
                 continue
-            self.count[kind] += 1
             y0, y1 = min(p[0] for p in pts), max(p[0] for p in pts)
             x0, x1 = min(p[1] for p in pts), max(p[1] for p in pts)
-            a = (kind, name, aid, lines, (y0, x0, y1, x1))
+            if kind == 'land':
+                km2 = (y1 - y0) / Q * M_PER_DEG / 1000 * (x1 - x0) / Q * M_PER_DEG / 1000 * math.cos(math.radians(y0 / Q))
+                kind = 'fire' if km2 >= FIRING_ZONE_KM2 else 'base'
+            self.count[kind] += 1
+            a = (kind, tags, aid, lines, (y0, x0, y1, x1))
             (i0, j0), (i1, j1) = grid_key(y0 / Q, x0 / Q, self.G), grid_key(y1 / Q, x1 / Q, self.G)
             for i in range(i0, i1 + 1):
                 for j in range(j0, j1 + 1):
                     self.grid.setdefault((i, j), []).append(a)
 
     def at(self, lat, lon):
-        """The military area the point is in, as (kind, name, id), or None. A base first, then a firing zone."""
+        """The military area the point is in, as (kind, tags, id), or None. A base first, then a firing zone."""
         y, x = lat * Q, lon * Q
         found = []
-        for kind, name, aid, lines, (y0, x0, y1, x1) in self.grid.get(grid_key(lat, lon, self.G), ()):
+        for kind, tags, aid, lines, (y0, x0, y1, x1) in self.grid.get(grid_key(lat, lon, self.G), ()):
             if not (y0 <= y <= y1 and x0 <= x <= x1):
                 continue
             # Even-odd rule over all the lines of the area: a multipolygon's ways need not be joined into rings
@@ -765,7 +785,7 @@ class MilitaryLand:
                     if (ay > y) != (by > y) and x < (bx - ax) * (y - ay) / (by - ay) + ax:
                         inn = not inn
             if inn:
-                found.append((kind, name, aid))
+                found.append((kind, tags, aid))
         return min(found, key=lambda a: a[0] != 'base') if found else None
 
 
@@ -821,8 +841,8 @@ def picked_views(featured, items):
 
 def build_views(f, dem, featured=None):
     """Marked viewpoints, and named peaks with a wide view that a marked trail reaches and that have no marked
-    viewpoint next to them; none in military land or closed. Hand-picked ones (featured.json 'views') stay,
-    and the ones featured.json 'hide' names go."""
+    viewpoint next to them. None in a base or closed; in a firing zone, only ones a marked trail or a paved road
+    reaches (see MILITARY_BASE). Hand-picked ones (featured.json 'views') stay, and the ones 'hide' names go."""
     try:
         mosaic = Mosaic()
     except ImportError:
@@ -863,26 +883,37 @@ def build_views(f, dem, featured=None):
     mil = MilitaryLand(f.military)
     print(f'military land: {dict(mil.count)} areas', flush=True)
     trails = TrailNear(f.route_geom)
-    out_mil, out_trail = [], 0
-    cands = []
+    out_base, out_fire, in_fire, out_trail = [], [], [], 0
+    cands, fire = [], set()
     for kind, items in ((0, vps), (1, peaks)):
         for it in items:
             if it[0] in hide:
                 continue
+            m = mil.at(it[1], it[2])
+            if m and m[0] == 'fire':
+                fire.add(it[0])
             if it[0] not in keep:
-                m = mil.at(it[1], it[2])
-                if m:
-                    out_mil.append((it, m))
+                if m and m[0] == 'base':
+                    out_base.append((it, m))
                     continue
-                if kind == 1 and not trails.within(it[1], it[2], PEAK_ON_TRAIL):
+                on_trail = trails.within(it[1], it[2], ON_TRAIL)
+                if m and not on_trail:
+                    rd = road_distance(f.roads, it[1], it[2], 2)
+                    if rd is None or rd > FIRE_ROAD:
+                        out_fire.append((it, m))
+                        continue
+                if kind == 1 and not on_trail:
                     out_trail += 1
                     continue
+            if it[0] in fire:
+                in_fire.append((it, m))
             cands.append((kind, it))
-    print(f'viewpoints: {len(hide)} hidden by hand (featured.json), {len(out_mil)} left out in military land '
-          f'({sum(1 for _, m in out_mil if m[0] == "fire")} of them in firing zones), '
-          f'{out_trail} peaks left out with no marked trail to the top', flush=True)
-    for it, m in out_mil:
-        print(f'  military: {it[0]} {it[3] or "-"} ({it[1]:.4f}, {it[2]:.4f}) in {m[0]} {m[2]} {m[1]}', flush=True)
+    print(f'viewpoints: {len(hide)} hidden by hand (featured.json); left out: {len(out_base)} in bases and army '
+          f'posts, {len(out_fire)} in firing zones with no marked trail or road to them, {out_trail} peaks with no '
+          f'marked trail to the top; {len(in_fire)} kept in firing zones', flush=True)
+    for what, lst in (('base, out', out_base), ('firing zone, out', out_fire), ('firing zone, kept', in_fire)):
+        for it, m in lst:
+            print(f'  {what}: {it[0]} {it[3] or "-"} ({it[1]:.4f}, {it[2]:.4f}) in {m[2]} {m[1]}', flush=True)
     print(f'viewpoints: {sum(1 for k, _ in cands if k == 0)} marked, {sum(1 for k, _ in cands if k == 1)} '
           f'named peaks to check', flush=True)
     if dem is not None:
@@ -902,6 +933,8 @@ def build_views(f, dem, featured=None):
             o['nn'] = 1
         rd = road_distance(f.roads, lat, lon)
         o['r'] = None if rd is None else int(round(rd / 10) * 10)
+        if vid in fire:
+            o['fz'] = 1
         o.update(v)
         out.append(o)
     print(f'viewpoints: {len(out)} written ({sum(1 for o in out if o["k"] == 1)} of them peaks)', flush=True)
