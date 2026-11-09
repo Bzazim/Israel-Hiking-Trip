@@ -1,5 +1,5 @@
 {
-  "about": "Hand-picked hikes ('hikes') and viewpoints ('views') for the route finder. Each one points to a marked trail in routes.json by its OpenStreetMap name ('osm', and 'mark' when two trails share a name); length, climb and the line on the map come from there. Fields here add to them or override them: 'desc' a short description, 'seasons' (winter, spring, summer, autumn), 'family' true/false, 'water' true/false, and optionally 'km', 'hours', 'loop' when the popular walk differs from the mapped trail. 'checked': false marks a draft entry that a person has not yet checked against a reliable source. A viewpoint is found by its OpenStreetMap name ('osm'), or as the closest one within 500 m of 'near' ([lat, lon]) when several share a place; 'title' then names it, and 'land' (desert, makhtesh, valley, mountains) can replace the computed landscape, and 'photos' (Wikimedia Commons file names) puts hand-picked photos first.",
+  "about": "Hand-picked hikes ('hikes') and viewpoints ('views') for the route finder. Each one points to a marked trail in routes.json by its OpenStreetMap name ('osm', and 'mark' when two trails share a name); length, climb and the line on the map come from there. Fields here add to them or override them: 'desc' a short description, 'seasons' (winter, spring, summer, autumn), 'family' true/false, 'water' true/false, and optionally 'km', 'hours', 'loop' when the popular walk differs from the mapped trail. 'checked': false marks a draft entry that a person has not yet checked against a reliable source. A viewpoint is found by its OpenStreetMap name ('osm'), or as the closest one within 500 m of 'near' ([lat, lon]) when several share a place; 'title' then names it, and 'land' (desert, makhtesh, valley, mountains) can replace the computed landscape, and 'photos' (Wikimedia Commons file names) puts hand-picked photos first. A hand-picked viewpoint stays on the map even where the build would leave it out (a peak with no marked trail to the top, or in military land), so list only places that are open to walkers. 'hide' lists viewpoints to leave out, found the same way ('osm' or 'near'), with 'why': places the map data doesn't show as closed, such as army posts, in use or abandoned.",
   "hikes": [
     {
       "osm": "נחל עמוד",
@@ -259,6 +259,11 @@
       "checked": false
     },
     {
+      "osm": "תל סאקי",
+      "desc": "תל געשי בדרום רמת הגולן ואתר הנצחה לקרב שהתנהל עליו במלחמת יום הכיפורים, עם תצפית על דרום הגולן ומזרחה אל החורן.",
+      "checked": false
+    },
+    {
       "osm": "מצפור מצוק רמים",
       "desc": "תצפית מראש מצוק רמים אל עמק החולה, הגולן והחרמון.",
       "checked": false
@@ -336,6 +341,12 @@
       "osm": "תצפית מהר גריזים",
       "desc": "תצפית מהר גריזים אל שכם, הר עיבל והרי השומרון.",
       "checked": false
+    }
+  ],
+  "hide": [
+    {
+      "osm": "הר חרמונית",
+      "why": "מוצב צבאי נטוש, לא אתר תצפית מוסדר"
     }
   ]
 }
