@@ -714,9 +714,10 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
 </script>
 
 <!-- What's new: edit the text here and raise data-version, and everyone sees it again, also those who ticked "don't show". -->
-<dialog class="news" id="news" data-version="8" aria-labelledby="news-title">
+<dialog class="news" id="news" data-version="9" aria-labelledby="news-title">
   <h2 id="news-title">מה חדש?</h2>
   <ol>
+    <li>תצפיות: רק מקומות שאפשר להגיע אליהם. ירדו תצפיות בבסיסים ובמוצבים, ופסגות שאין אליהן שביל מסומן. תצפית בשטח אש נשארת רק אם שביל מסומן או כביש מגיעים אליה, ומסומנת ⚠️ כי נכנסים רק כשהשטח פתוח</li>
     <li>תמונות בדף של כל תצפית, כדי לראות איך הנוף נראה. בחיפוש "קרוב אליי" המרחקים מדויקים יותר, נמדדים לנקודה הקרובה בשביל וממוינים מהקרוב לרחוק</li>
     <li>תצפיות: בלשונית מסלולים אפשר לחפש תצפיות לפי שקיעה או זריחה, סוג נוף ואיך מגיעים, ולראות לאן ועד כמה רחוק רואים מכל אחת. התצפיות מסומנות גם על המפה ובדף של כל מסלול</li>
     <li>לשונית מסלולים: בוחרים אורך, זמן, קושי, אזור ועונה, ומקבלים המלצות על שבילים מסומנים עם טיפוס, זמן הליכה ומים בדרך</li>
@@ -2811,7 +2812,9 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
   });
 
   // ---------- Viewpoints (תצפיות) ----------
-  // data/views.json, made by tools/build_data.py: marked viewpoints, and named peaks with a wide view. For each,
+  // data/views.json, made by tools/build_data.py: marked viewpoints, and named peaks with a wide view that a marked
+  // trail reaches; none in a military base or closed to walkers, and in a firing zone ('fz') only ones a marked
+  // trail or a paved road reaches. For each,
   // the farthest ground in sight in 36 directions (km, from an elevation model), the ground height, the distance to
   // a paved road or car park, and whether the view takes in flat lowland well below (valley) or high broken land
   // (mountains). Desert and makhtesh come from where the point is. Sunset and sunrise: whether the view is open
@@ -2857,7 +2860,8 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     const access = v.r != null && v.r <= 200 ? 'car' : v.r != null && v.r <= 1200 ? 'walk' : 'hike';
     return {
       v, f, id: v.id, name: (f && f.title) || v.n, lat, lon, region, h: v.h, peak: v.k === 1, guessedName: !!v.nn && !(f && f.title),
-      sunset: open(240, 300), sunrise: open(60, 120), land, access, road: v.r, maxReach: Math.max(...v.v), quality: median(v.v)
+      sunset: open(240, 300), sunrise: open(60, 120), land, access, road: v.r, maxReach: Math.max(...v.v), quality: median(v.v),
+      fz: !!v.fz
     };
   }
 
@@ -3001,7 +3005,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     sub.className = 'rt-sub';
     sub.textContent = [x.h + ' מ׳', 'רואים עד ' + reachText(x.maxReach), ACCESS_SHORT[x.access]].join(' · ');
     main.append(name, sub);
-    const tags = [x.sunset === 2 ? '🌅 שקיעה' : '', x.sunrise === 2 ? '🌄 זריחה' : ''].concat(x.land.map((l) => LAND_NAME[l]), REGION_NAME[x.region]).filter(Boolean);
+    const tags = [x.fz ? '⚠️ שטח אש' : '', x.sunset === 2 ? '🌅 שקיעה' : '', x.sunrise === 2 ? '🌄 זריחה' : ''].concat(x.land.map((l) => LAND_NAME[l]), REGION_NAME[x.region]).filter(Boolean);
     const t = document.createElement('span');
     t.className = 'rt-tags';
     t.textContent = tags.join(' · ');
@@ -3130,6 +3134,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     $('vd-sunset').textContent = sun(x.sunset);
     $('vd-sunrise').textContent = sun(x.sunrise);
     const notes = [];
+    if (x.fz) notes.push('⚠️ בשטח אש: נכנסים רק בזמנים שהשטח פתוח למטיילים, לרוב בסופי שבוע ובחגים. כדאי לבדוק לפני היציאה.');
     notes.push(x.access === 'car' ? '🚗 אפשר להגיע ברכב: כביש או חניה ' + (x.road <= 30 ? 'ממש ליד' : 'במרחק ' + fmtDist(x.road))
       : x.access === 'walk' ? '🚶 כ־' + fmtDist(x.road) + ' הליכה מהכביש הסלול הקרוב'
       : x.road != null ? '🥾 ' + fmtDist(x.road) + ' מהכביש הסלול הקרוב: מגיעים בטיול או בדרך עפר'
